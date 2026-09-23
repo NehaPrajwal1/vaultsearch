@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+indexes/
+logs/
+.pytest_cache/
+plan.md
+glean_jd.md
+.env
+cloud/.terraform/
+cloud/.terraform.lock.hcl
+cloud/terraform.tfstate*
+cloud/volume/
