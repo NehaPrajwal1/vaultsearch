@@ -42,7 +42,7 @@ You do **not** need any cloud account, API key, or paid service.
 You need: **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** and **[Git](https://git-scm.com/downloads)**.
 
 ```bash
-git clone https://github.com/vishakkashyapk30/vaultsearch.git
+git clone https://github.com/NehaPrajwal1/vaultsearch.git
 cd vaultsearch
 docker compose up --build
 ```
@@ -66,7 +66,7 @@ You need: **Python 3.11+**, **[Ollama](https://ollama.com/download)**, and **Git
 
 ```bash
 # 1. Download the project
-git clone https://github.com/vishakkashyapk30/vaultsearch.git
+git clone https://github.com/NehaPrajwal1/vaultsearch.git
 cd vaultsearch
 
 # 2. Pull the language model (≈ 3 GB, one-time download)
