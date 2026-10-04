@@ -29,7 +29,7 @@ services:
   vaultsearch:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       ollama-pull:
         condition: service_completed_successfully

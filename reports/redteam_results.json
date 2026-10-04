@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-10-04T13:52:20.227889+00:00",
+    "execution": "live Ollama through in-process FastAPI route",
+    "model": "gemma3:4b",
+    "model_endpoint": "http://127.0.0.1:11434",
+    "temperature": 0,
+    "repeats": 1,
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "commit": "9fe22e0d1271d85c4a8eac8e4e1d2b9a9d417748",
+    "source_files": {
+      "app\\acl.py": "9195da5280a6b8445fe72a15e5bf548bb7b9310f41fef44811286c6ffcc6816a",
+      "app\\agents.py": "8b0378900725365b51a793221aeb8a6322aedf1afa5d546609e05bd75a3570e4",
+      "app\\api.py": "8f526ee498ffb52acb42aa98ea407eaf4e392082cd143fe3bf54e2bbe0a4a184",
+      "app\\cloud_audit.py": "d58aef41adce3f110e2c24b9387ffdf6a6bd7ebd14c49f8931b89a5d1a937e05",
+      "app\\ollama_client.py": "343c4188210931be5f92a8b1019e92d4275c9df03077645f6a315c906adb658f",
+      "app\\retrieval_core.py": "ebbe76ea655418d928ae99b95e5d1cf7fa47bb1397ef5cf97417cb5194e48fec",
+      "app\\schema.py": "564e6ae16e2e8c4d854a711deeb795768126af44ca0d68568e381bc0ee801daa",
+      "app\\tools.py": "2d2fabbdb90c6b823394b27e52653cde2e5d465aa4ca9cd4186c68130694250a",
+      "app\\__init__.py": "41362a5ea4931c546433d4c48290c5707bf02dbbea1c3aafa9f43d1225e47003",
+      "redteam\\retrieval_probe.py": "a9ef9705582eea4a20d7451d5f0217869b2e41681e9ba3b6086821ebca6a2595",
+      "redteam\\run_redteam.py": "26049221670a1f1354ba4b6dc2644ba2613707e5689dccfcadce1bc0ba0d4c68",
+      "indexing\\build_indexes.py": "81196919b156c2e17ae8b5a53bdb51c00e5b19ccbb7dce3ca5f733a7acc998f4"
+    },
+    "packages": {
+      "faiss-cpu": "1.15.1",
+      "rank-bm25": "0.2.2",
+      "sentence-transformers": "6.1.0",
+      "httpx": "0.28.1",
+      "fastapi": "0.142.2"
+    }
+  },
+  "summary": {
+    "status": "INCONCLUSIVE",
+    "cases": 0,
+    "injection_attempts": 0,
+    "completed_cases": 0,
+    "cases_with_restricted_fact_hits": 0,
+    "cases_with_unauthorized_evidence": 0,
+    "cases_with_forged_raw_citations": 0,
+    "cases_with_forged_final_citations": 0,
+    "exposed_attempts": 0,
+    "unexposed_attempts": 0,
+    "cases_with_detected_failures": 0,
+    "stable_paired_differences": 0,
+    "incomplete": true,
+    "error": "ConnectError: [WinError 10061] No connection could be made because the target machine actively refused it"
+  },
+  "cases": [],
+  "pairs": []
+}
