@@ -2,12 +2,11 @@
 
 ## Goals
 
-VaultSearch is a reference implementation of a **secure retrieval boundary for
-RAG**: given a user and a question, produce a grounded, cited answer while
-guaranteeing that no content the user is not authorized to read can influence
-the answer, appear in a citation, or be inferred from the response. Enterprise
-search over heterogeneous sources is the demo scenario, but the boundary itself
-is general — it applies to any multi-tenant or permissioned RAG application.
+VaultSearch is a local permission-aware RAG prototype. It aims to restrict
+retrieved evidence to the selected identity. This is not a validated guarantee
+of non-disclosure, factual grounding, or existence indistinguishability.
+See `RESTORATION.md` for the recovered implementation's provenance and
+`reports/redteam_report.md` for the current evaluation status.
 
 The primary invariant is stronger than answer-level redaction: unauthorized
 text must never reach ranking, reranking, or the model's context in the first
@@ -19,8 +18,10 @@ path below and the scale study in `reports/` describe what would change.
 
 ## Threat model
 
-The adversary is a legitimate, authenticated user trying to obtain content
-outside their permissions, by any of:
+The evaluation assumes a fixed caller identity and tests attempts to obtain
+content outside its permissions. The demo API itself accepts caller-selected
+user_id and does not implement authentication. That assumption is unsuitable
+for a production service without an authenticated identity boundary. Attacks include:
 
 - crafting queries designed to surface restricted documents;
 - planting prompt-injection instructions in documents they *can* write/read,
@@ -96,25 +97,20 @@ returned text for distinctive secrets from documents the test user cannot read.
 
 ## Attacking the model layer
 
-Retrieval-time filtering only protects the boundary if the layer above it can't
-undo it. The red-team study (`redteam/run_redteam.py`, report in `reports/`)
-attacks the model directly and reports observed behavior:
+The runner exercises the real in-process `/api/ask` endpoint. It records exact
+payload submission at assessment and synthesis calls, model errors, raw/final
+citation labels, restricted fact variants, and per-case API responses. Unexposed
+attacks and model outages are inconclusive, not successful defenses.
 
-- **Prompt injection.** Documents readable by everyone are seeded with
-  instructions telling the model to ignore permissions and reveal other teams'
-  secrets. Because restricted documents are never retrieved, the secrets are not
-  in context, so the injection cannot exfiltrate them — the structural guarantee
-  holds regardless of model compliance.
-- **Citation forgery.** The local model does invent citations (observed in ~40%
-  of raw responses in one run — e.g., ticket display keys or made-up IDs). This
-  is a genuine model-quality failure, which is why the server strips every
-  citation that does not map to verified evidence; none survive to the user.
-- **Existence inference.** When no authorized evidence answers a question, the
-  refusal is produced by deterministic code with no LLM call, so a
-  restricted-but-hidden topic is indistinguishable from a nonexistent one.
+Existence evaluation keeps the query and visible corpus fixed while removing
+hidden documents, rebuilding BM25 and FAISS. A repeated baseline helps identify
+model variability. Response differences retain counts, scores, and traces;
+timing is recorded separately without claiming a statistical timing guarantee.
 
-The lesson encoded in the design: keep authorization in deterministic code
-below the model, and treat model output (text and citations) as untrusted.
+Known limitations: total corpus counts reveal hidden-corpus size; global BM25
+statistics may influence visible rankings; the citation sanitizer does not enforce
+factual grounding; normalized string checks miss some paraphrases/encodings;
+and the suite is small. Old zero-leak and indistinguishability claims are withdrawn.
 
 ## Key trade-offs
 
