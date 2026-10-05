@@ -16,3 +16,5 @@ Scope: portfolio demo unless explicitly changed. Explain fixes, measured tests, 
 ## Work begun 2026-10-05
 
 Started from merged main `7622b04` on `security/trusted-demo-identity` in the existing checkout. See `reports/security_review.md` and the current reports for outcomes. The user also authorized installation of Ollama and the configured `gemma3:4b` model. Preserve work already on this branch when resuming; do not reset it to main.
+
+The owner will run the full live suite themselves. Ollama and gemma3:4b are installed; the agent run was stopped at their request. Use RUN_SECURITY.md. Review the resulting reports, update draft PR #5, and do not merge.

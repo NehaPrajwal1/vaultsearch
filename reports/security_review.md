@@ -31,3 +31,13 @@ The current tests and live Ollama run are recorded in the final review update be
 ## Remaining limits
 
 Three paired questions are a small deterministic search check, not a proof of indistinguishability. Ask-route model behavior and traces require the separate live run. Request timings still depend on corpus traversal and workload and are outside this fix; no timing resistance is claimed. Secret oracles cover listed strings/normalized variants, not every paraphrase or encoded leak. Valid citations do not prove groundedness. The critic is advisory. Historical quality/latency and scaling measurements have not been rerun for the new per-request permitted-corpus scoring. Docker/LocalStack and a real external MCP host were not exercised in this review; MCP HTTP forwarding is covered by regression tests.
+
+## Handoff update
+
+74 tests passed in the full updated suite; 37 targeted security/harness tests passed after instrumentation changes. JavaScript syntax and git diff checks passed. The refreshed real retrieval report records source commit 79e3d70 and source hashes, with 0/3 stable paired differences.
+
+Ollama 0.35.1 and gemma3:4b (Q4_K_M, digest a2af6cc3eb7fa8be8504abaf9b04e88f17a119ec3f04a3addf55f92841195f5a) were installed. Live readiness generation completed. The first injection-family case for user:asha completed but reported no exposed payload IDs. The user chose to run the lengthy full suite themselves; the active evaluation was stopped. Complete case outputs were not persisted by that version of the runner, so no attack-resistance result can be inferred from this partial attempt. The runner now checkpoints completed cases and handles Ctrl+C as incomplete for the user's upcoming run.
+
+Draft PR: https://github.com/NehaPrajwal1/vaultsearch/pull/5. No merge performed. Live evaluation remains INCONCLUSIVE until the owner completes and reviews the run. See RUN_SECURITY.md for exact commands.
+
+The final checkpoint/cancellation regression also passed: 38 targeted tests. The earlier full-suite result was 74 tests before this additional regression.

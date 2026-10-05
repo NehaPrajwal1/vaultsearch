@@ -1,7 +1,7 @@
 # Retrieval-only boundary measurements
 
 Execution: real BM25, MiniLM embeddings, FAISS, cross-encoder, and /api/search; no LLM
-UTC: 2026-10-05T05:55:02.304126+00:00
+UTC: 2026-10-05T06:04:37.437357+00:00
 
 - Cases: 15
 - Unauthorized chunks returned: 0
