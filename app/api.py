@@ -8,12 +8,13 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .acl import IdentityStore, can_access
+from .auth import configure_identity, trusted_user, check_claim
 from .agents import Orchestrator
 from .cloud_audit import make_audit_sink
 from .ollama_client import OllamaClient
@@ -41,6 +42,7 @@ def _audit_logger() -> logging.Logger:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     identity = IdentityStore.load(ROOT / "data" / "users_groups.json")
+    configure_identity(app.state, identity)
     retriever = Retriever(
         ROOT / "indexes",
         identity,
@@ -57,13 +59,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="VaultSearch",
     version="1.0.0",
-    description="Local permission-aware RAG demo. Caller-selected identities are not authentication.",
+    description="Local permission-aware RAG demo with a server-bound test identity.",
     lifespan=lifespan,
 )
 
 
 class AskRequest(BaseModel):
-    user_id: str = Field(examples=["user:asha"])
+    user_id: str | None = None
     question: str = Field(min_length=2, max_length=2000)
     top_n: int = Field(default=6, ge=1, le=20)
 
@@ -77,7 +79,7 @@ class AskResponse(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    user_id: str
+    user_id: str | None = None
     query: str = Field(min_length=2, max_length=2000)
     top_n: int = Field(default=6, ge=1, le=20)
 
@@ -88,10 +90,10 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/users")
-def users(request: Request) -> dict:
+def users(request: Request, user: str = Depends(trusted_user)) -> dict:
     identity: IdentityStore = request.app.state.identity
     retriever: Retriever = request.app.state.retriever
-    directory = identity.directory()
+    directory = [record for record in identity.directory() if record["user_id"] == user]
     for record in directory:
         principals = identity.expand_principals(record["user_id"])
         visible = sum(
@@ -100,22 +102,25 @@ def users(request: Request) -> dict:
             if can_access(principals, chunk["allowed_principals"])
         )
         record["visible_chunks"] = visible
-    return {"users": directory, "total_chunks": len(retriever.chunks)}
+    return {"users": directory}
+
+
+@app.get("/api/directory")
+def directory(request: Request, user: str = Depends(trusted_user)) -> dict:
+    return {"users": request.app.state.identity.directory()}
 
 
 @app.post("/api/search")
-def search(payload: SearchRequest, request: Request) -> dict:
+def search(payload: SearchRequest, request: Request, user: str = Depends(trusted_user)) -> dict:
     """Run every retrieval mode so the UI can compare them side by side."""
-    identity: IdentityStore = request.app.state.identity
     retriever: Retriever = request.app.state.retriever
-    if not identity.known_user(payload.user_id):
-        raise HTTPException(status_code=404, detail="Unknown user")
+    check_claim(payload.user_id, user)
 
     modes: dict[str, dict] = {}
     allowed = 0
     for mode in RETRIEVAL_MODES:
         result = retriever.search(
-            payload.user_id, payload.query, top_n=payload.top_n, mode=mode
+            user, payload.query, top_n=payload.top_n, mode=mode
         )
         allowed = result.candidates_allowed
         modes[mode] = {
@@ -134,24 +139,21 @@ def search(payload: SearchRequest, request: Request) -> dict:
     return {
         "modes": modes,
         "visible_chunks": allowed,
-        "total_chunks": len(retriever.chunks),
     }
 
 
 @app.post("/api/ask", response_model=AskResponse)
-def ask(payload: AskRequest, request: Request) -> AskResponse:
-    identity: IdentityStore = request.app.state.identity
-    if not identity.known_user(payload.user_id):
-        raise HTTPException(status_code=404, detail="Unknown user")
+def ask(payload: AskRequest, request: Request, user: str = Depends(trusted_user)) -> AskResponse:
+    check_claim(payload.user_id, user)
 
     result = request.app.state.orchestrator.answer(
-        payload.user_id,
+        user,
         payload.question,
         payload.top_n,
     )
     audit_event = {
         "event": "ask",
-        "user_id": payload.user_id,
+        "user_id": user,
         "question": payload.question,
         "citations": result.citations,
         "trace": result.trace,
@@ -160,7 +162,9 @@ def ask(payload: AskRequest, request: Request) -> AskResponse:
     request.app.state.audit.info(json.dumps(audit_event, separators=(",", ":")))
     if request.app.state.audit_sink is not None:
         request.app.state.audit_sink.write(audit_event)
-    return AskResponse(**result.__dict__)
+    public = dict(result.__dict__)
+    public["trace"] = {k: v for k, v in result.trace.items() if k != "verification_rejections"}
+    return AskResponse(**public)
 
 
 @app.get("/")

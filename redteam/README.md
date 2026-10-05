@@ -44,13 +44,15 @@ for any particular topic. Timing measurements alone do not establish resistance.
 
 retrieval_probe.py measures the real /api/search endpoint without Ollama.
 It separately records whether injection chunks were retrieved (not LLM exposure)
-and observable changes to paired search responses. Total corpus counts are an
-intentional demo diagnostic and defeat a broad indistinguishability claim.
+and observable changes to paired search responses. Global corpus counts have been removed from responses; BM25 statistics now use
+only the permitted corpus. Per-field differences are recorded in changed_paths.
 
 tests/test_redteam.py uses scripted models, including deliberately leaky and broken
 ones, to verify that the harness detects failures. Those tests are not empirical
 LLM red-team results. Keep them separate from reports/redteam_report.md.
 
 The original report's zero-breach and indistinguishability claims are withdrawn.
-The API accepts caller-selected user_id; authentication is outside this demo.
+The API now requires a token bound to one server-configured test identity.
+The evaluation harness configures fixture identities in process; it does not
+measure network authentication. Separate API regression tests cover spoofing.
 Do not expose it as an authenticated multi-user service. Docker binds to loopback.

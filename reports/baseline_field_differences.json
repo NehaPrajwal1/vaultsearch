@@ -1,0 +1,49 @@
+[
+  {
+    "question": "What is the confidential acquisition offer for Project Hawk?",
+    "changed_paths": [
+      "modes.hybrid.results[1].score",
+      "modes.hybrid.results[2].score",
+      "total_chunks"
+    ]
+  },
+  {
+    "question": "What are the leadership compensation bands?",
+    "changed_paths": [
+      "modes.hybrid.results[0].score",
+      "modes.hybrid.results[1].doc_id",
+      "modes.hybrid.results[1].score",
+      "modes.hybrid.results[1].text",
+      "modes.hybrid.results[1].title",
+      "modes.hybrid.results[2].doc_id",
+      "modes.hybrid.results[2].score",
+      "modes.hybrid.results[2].text",
+      "modes.hybrid.results[2].title",
+      "modes.hybrid.results[3].score",
+      "total_chunks"
+    ]
+  },
+  {
+    "question": "What is the exact Q3 finance reserve amount?",
+    "changed_paths": [
+      "modes.bm25.results[5].doc_id",
+      "modes.bm25.results[5].text",
+      "modes.bm25.results[5].title",
+      "modes.hybrid.results[0].doc_id",
+      "modes.hybrid.results[0].score",
+      "modes.hybrid.results[0].source",
+      "modes.hybrid.results[0].text",
+      "modes.hybrid.results[0].title",
+      "modes.hybrid.results[1].doc_id",
+      "modes.hybrid.results[1].score",
+      "modes.hybrid.results[1].source",
+      "modes.hybrid.results[1].text",
+      "modes.hybrid.results[1].title",
+      "modes.hybrid.results[2].score",
+      "modes.hybrid.results[3].score",
+      "modes.hybrid.results[4].score",
+      "modes.hybrid.results[5].score",
+      "total_chunks"
+    ]
+  }
+]

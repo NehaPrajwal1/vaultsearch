@@ -15,7 +15,7 @@
       <div class="brand-mark" aria-hidden="true"></div>
       <div class="brand-text">
         <h1>VaultSearch</h1>
-        <p>A secure retrieval boundary for RAG — the answer never surfaces what you can&rsquo;t see.</p>
+        <p>Permission-aware retrieval with a server-bound demo identity.</p>
       </div>
     </div>
     <div class="topbar-status">
@@ -27,10 +27,11 @@
   <main class="layout">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <h2>Who are you?</h2>
-        <p class="muted">Pick an identity. Every user sees a different slice of the corpus &mdash; that slice is enforced before search runs, not after.</p>
+        <h2>Demo identity</h2>
+        <form id="connect-form"><label for="demo-token">Demo token</label><input id="demo-token" type="password" autocomplete="off" required /><button type="submit">Connect</button></form>
+        <p class="muted">Enter the token supplied by the demo operator. Your identity is configured at the server; the token is held only in page memory.</p>
       </div>
-      <div id="user-list" class="user-list" role="listbox" aria-label="Choose an identity"></div>
+      <div id="user-list" class="user-list" role="listbox" aria-label="Configured identity"></div>
     </aside>
 
     <section class="content">
@@ -57,8 +58,8 @@
 
         <div id="ask-empty" class="empty-state">
           <div class="empty-illustration" aria-hidden="true"></div>
-          <h3>Ask anything, as anyone.</h3>
-          <p>Try the same restricted question as a finance user and then as an engineer. Watch the answer change &mdash; because the evidence changes first.</p>
+          <h3>Search as your configured identity.</h3>
+          <p>The operator can restart the demo with another identity and a new token to compare permitted evidence.</p>
         </div>
 
         <div id="ask-result" class="ask-result" hidden>

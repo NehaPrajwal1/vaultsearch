@@ -36,6 +36,8 @@ services:
     environment:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:4b}
+      VAULTSEARCH_USER: ${VAULTSEARCH_USER:?Set the trusted demo identity}
+      VAULTSEARCH_TOKEN: ${VAULTSEARCH_TOKEN:?Set a random demo bearer token}
       USE_RERANKER: ${USE_RERANKER:-true}
       AGENT_MAX_ROUNDS: ${AGENT_MAX_ROUNDS:-2}
       USE_CRITIC: ${USE_CRITIC:-true}

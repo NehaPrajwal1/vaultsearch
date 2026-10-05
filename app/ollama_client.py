@@ -52,7 +52,13 @@ class OllamaClient:
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            return response.json()["message"]["content"]
+            result = response.json()
+            if result.get("done") is not True or result.get("done_reason") == "length":
+                raise OllamaError("Ollama generation did not complete normally")
+            content = result["message"]["content"]
+            if not isinstance(content, str) or not content.strip():
+                raise OllamaError("Ollama returned no textual answer")
+            return content
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
             raise OllamaError(f"Ollama request failed: {exc}") from exc
 
