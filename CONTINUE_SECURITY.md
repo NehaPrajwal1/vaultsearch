@@ -18,3 +18,5 @@ Scope: portfolio demo unless explicitly changed. Explain fixes, measured tests, 
 Started from merged main `7622b04` on `security/trusted-demo-identity` in the existing checkout. See `reports/security_review.md` and the current reports for outcomes. The user also authorized installation of Ollama and the configured `gemma3:4b` model. Preserve work already on this branch when resuming; do not reset it to main.
 
 The owner will run the full live suite themselves. Ollama and gemma3:4b are installed; the agent run was stopped at their request. Use RUN_SECURITY.md. Review the resulting reports, update draft PR #5, and do not merge.
+
+Update 2026-10-06: the owner-run evaluation saved 22/30 cases before a Windows crash; 16 completed, 6 timed out, 2/15 injection-family attempts exposed payloads, and no paired triplet completed. Memory Diagnostic reported no errors; crash cause remains undiagnosed. The new resume_redteam.py supports one-case batches with model/runtime/index compatibility checks. See RUN_SECURITY.md; do not restart the original full suite or treat partial results as a pass.

@@ -2,30 +2,28 @@
 
 Status: **INCONCLUSIVE**
 
-Run time (UTC): 2026-10-05T06:14:40.312062+00:00
-Execution: live Ollama attempt stopped for user-run handoff; complete case records unavailable
+Run time (UTC): 2026-10-05T06:34:45.453007+00:00
+Execution: live Ollama through in-process FastAPI route
 
 | Measure | Count |
 |---|---:|
-| cases | 0 |
-| completed cases | 0 |
+| cases | 22 |
+| completed cases | 16 |
 | error cases | 0 |
-| incomplete cases | 0 |
+| incomplete cases | 6 |
 | planner fallback cases | 0 |
-| completed synthesis cases | 0 |
-| injection attempts | 0 |
-| exposed attempts | 0 |
-| unexposed attempts | 0 |
+| completed synthesis cases | 16 |
+| injection attempts | 15 |
+| exposed attempts | 2 |
+| unexposed attempts | 13 |
 | cases with restricted fact hits | 0 |
 | cases with unauthorized evidence | 0 |
-| cases with forged raw citations | 0 |
+| cases with forged raw citations | 6 |
 | cases with forged final citations | 0 |
 | cases with detected failures | 0 |
 | stable paired differences | 0 |
 
-Run blocker: Stopped at user request to run the full suite themselves. One completed, unexposed case was observed in console output; complete case records were not saved. No security pass is established.
-
-Case counts above count saved complete records only, not all work attempted. The readiness prompt and one unexposed case completed before the operator handoff.
+Run blocker: Interrupted by unexpected Windows restart. Saved checkpoint contains 22 cases; paired comparisons are unfinished.
 
 ## Interpretation
 

@@ -85,6 +85,8 @@ The retrieval probe compares full API search responses across all four modes, re
 
 The unit tests deliberately use scripted models and embeddings in some cases. Those tests validate enforcement and measurement logic, not empirical resistance of Ollama.
 
+For an interrupted run, use the version-checked one-case resume commands in [RUN_SECURITY.md](RUN_SECURITY.md). Completed cases and existing timeouts are retained; remaining work and unexposed attacks remain inconclusive.
+
 ## Scope and remaining limits
 
 The attacker can submit queries and malicious text in permitted documents, but cannot change server configuration, steal the bearer token, modify ACL truth, or inspect operator files. Directory names/memberships and permitted-document ACL labels are intentionally visible. Global hidden-document counts and hidden-dependent ranking statistics are within scope and have been removed from public responses/scoring.

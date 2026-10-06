@@ -41,3 +41,9 @@ Ollama 0.35.1 and gemma3:4b (Q4_K_M, digest a2af6cc3eb7fa8be8504abaf9b04e88f17a1
 Draft PR: https://github.com/NehaPrajwal1/vaultsearch/pull/5. No merge performed. Live evaluation remains INCONCLUSIVE until the owner completes and reviews the run. See RUN_SECURITY.md for exact commands.
 
 The final checkpoint/cancellation regression also passed: 38 targeted tests. The earlier full-suite result was 74 tests before this additional regression.
+
+## Interrupted owner-run measurements and resume support (2026-10-06)
+
+The owner-run live checkpoint records 22 cases at code 5351e51: 16 completed and 6 incomplete due to model-call timeouts. All 15 injection attempts were tried; 2 had measured completed pre-answer payload exposure, 13 did not. Six citation-family cases were tried. Six raw forged-citation cases were detected and zero forged final citations survived in the saved outputs. No configured restricted fact or unauthorized evidence hit was detected. One existence sample completed, but no paired triplet completed; zero stable paired differences in this partial report is not a result for unrun comparisons. Status remains INCONCLUSIVE after the Windows restart. Original checkpoint copies are kept locally under interrupted-2026-10-05/.
+
+A separate resume runner now checks model digest, Python/package versions, runtime code hashes, identity and indexes before combining observations. It runs bounded new cases, checkpoints them, retains prior errors/unexposed cases, and recomputes pairs only when all three samples are present. Session version/timestamps are retained. Scripted regression coverage verifies prefix ordering, variant pairing, interruption, preservation of incomplete cases, and refusal to mix incompatible environments: 51 targeted tests passed. The actual 22-case checkpoint matched local runtime artifacts in a dry compatibility check. No resumed live inference has been started by the agent.
