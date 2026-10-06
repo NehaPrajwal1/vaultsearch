@@ -1,3 +1,5 @@
+> **Current state (2026-10-07): all 30 cases are saved.** No further resume commands are needed. The canonical final report is `reports/redteam_report.md`; status is INCONCLUSIVE because of timeouts, unexposed attempts, and unstable live paired baselines. The instructions below are retained for future interrupted runs.
+
 # Continue after the interrupted Windows run
 
 Windows Memory Diagnostic reported no errors. The cause of the 0x12B crash is still undiagnosed. Do not immediately repeat the original multi-hour command. The saved checkpoint contains 22/30 cases: 16 completed and 6 incomplete due to timeouts. Eight unattempted cases remain. The report stays INCONCLUSIVE; resuming preserves the timeouts and unexposed attempts.

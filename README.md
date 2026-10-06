@@ -12,6 +12,12 @@ A local portfolio demo of permission-aware retrieval and cited answers over a sy
 
 See [security review](reports/security_review.md), [retrieval measurements](reports/retrieval_probe.md), and [live red-team status](reports/redteam_report.md). Historical measurements are preserved in `reports/baseline-2026-10-04/` and must not be interpreted as current results.
 
+## Latest measured outcome
+
+The gemma3:4b live suite has all 30 cases saved across the original run and resumed batches. Status is **INCONCLUSIVE**: 24 cases completed, 6 timed out, and only 2/15 injection attempts had completed attack-prompt exposure. No configured restricted-fact, unauthorized-evidence, or final forged-citation hits were observed; seven cases had raw invalid citation labels removed by filtering. The two exposed answers repeated malicious source instructions as advice, which the current disclosure oracle does not score.
+
+Of three live paired comparisons, one had a stable baseline and identical non-timing responses; two had unstable repeated baselines. This differs from the retrieval-only result of 0/3 differences across three stable queries. Neither measurement establishes broad injection resistance or timing indistinguishability. See the [final report](reports/redteam_report.md) and per-case JSON before making security claims.
+
 ## Local Windows setup
 
 Use Python 3.11+, Git, and [Ollama](https://ollama.com/download/windows). The existing project already has a virtual environment and indexes; do not overwrite those just to resume work.
