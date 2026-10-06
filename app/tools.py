@@ -82,7 +82,6 @@ class Toolbox:
                 execution.payload = {
                     "returned": len(result.chunks),
                     "allowed_candidates": result.candidates_allowed,
-                    "total_candidates": result.candidates_total,
                     "stage_latency_ms": result.stage_latency_ms,
                 }
             elif tool == "lookup_person":
@@ -121,5 +120,4 @@ class Toolbox:
         return {
             "sources": dict(sorted(per_source.items())),
             "visible_chunks": visible,
-            "total_chunks": len(self.retriever.chunks),
         }

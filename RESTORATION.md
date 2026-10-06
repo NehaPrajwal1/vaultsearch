@@ -11,10 +11,10 @@ Recovered: `app/agents.py`, `app/api.py`, `app/cloud_audit.py`,
 Recovery does not establish that old reports describe this code.
 Later changes add evaluation instrumentation, regression tests, and corrected claims.
 
-This is a local persona demo, not an authenticated multi-user deployment.
-The API trusts caller-selected user_id. The MCP wrapper does not authenticate
-direct API callers. Docker now binds to loopback. A deployment needs
-server-validated identity and a separate metadata/timing-channel review.
+This remains a local demo. The later security work binds API requests to a
+server-configured test identity using a random bearer token, shared with MCP.
+Production authentication and timing-channel review remain out of scope.
+See reports/security_review.md for current measurements.
 
 The live evaluation writes INCONCLUSIVE if Ollama is unavailable.
 Deterministic test models validate the harness and enforcement code only;

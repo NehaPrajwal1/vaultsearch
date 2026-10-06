@@ -1,6 +1,7 @@
 "use strict";
 
 const state = {
+  token: "",
   users: [],
   totalChunks: 0,
   currentUser: null,
@@ -40,7 +41,7 @@ function groupChip(group) {
 async function api(path, body) {
   const res = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${state.token}` },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -66,10 +67,12 @@ async function checkHealth() {
 }
 
 async function loadUsers() {
-  const data = await (await fetch("/api/users")).json();
+  const res = await fetch("/api/users", {headers: {Authorization: `Bearer ${state.token}`}});
+  if (!res.ok) throw new Error("Demo token was not accepted");
+  const data = await res.json();
   state.users = data.users;
-  state.totalChunks = data.total_chunks;
-  el("corpus-stat").textContent = `${data.total_chunks} chunks indexed`;
+  state.totalChunks = data.users[0].visible_chunks;
+  el("corpus-stat").textContent = `${state.totalChunks} accessible chunks`;
   renderUsers();
   selectUser(state.users[0]);
 }
@@ -81,11 +84,10 @@ function renderUsers() {
     const card = document.createElement("button");
     card.className = "user-card";
     card.dataset.userId = user.user_id;
-    const pct = Math.round((user.visible_chunks / state.totalChunks) * 100);
     card.innerHTML = `
       <div class="name">
         <span>${escapeHtml(user.name)}</span>
-        <span class="visible">${user.visible_chunks}/${state.totalChunks} · ${pct}%</span>
+        <span class="visible">${user.visible_chunks} accessible chunks</span>
       </div>
       <div class="user-groups">${user.groups.map(groupChip).join("")}</div>`;
     card.addEventListener("click", () => selectUser(user));
@@ -99,8 +101,7 @@ function selectUser(user) {
     c.classList.toggle("is-active", c.dataset.userId === user.user_id);
   });
   el("ask-user-name").textContent = user.name;
-  const pct = Math.round((user.visible_chunks / state.totalChunks) * 100);
-  el("ask-user-visibility").textContent = `can see ${user.visible_chunks} of ${state.totalChunks} chunks (${pct}%)`;
+  el("ask-user-visibility").textContent = `can see ${user.visible_chunks} chunks`;
 }
 
 /* ---------- Ask ---------- */
@@ -192,12 +193,10 @@ function renderTrace(trace, latency) {
       ? `<div class="t-detail"><em>Agent judged evidence insufficient: ${escapeHtml(round.reason)}</em></div>`
       : "";
     const details = searches.map((r) => {
-      const filtered = r.total_candidates - r.allowed_candidates;
       return `
         <div class="t-detail">
           Query <span class="mono">&ldquo;${escapeHtml(r.args.query)}&rdquo;</span>:
           searched ${r.allowed_candidates} authorized chunks
-          (<strong>${filtered}</strong> restricted chunks excluded before scoring),
           returned ${r.returned}.
         </div>`;
     });
@@ -221,9 +220,7 @@ function renderTrace(trace, latency) {
     <div class="trace-step">
       <div class="t-title">3 · Independent verification · ${Math.round(latency.verification)} ms</div>
       <div class="t-detail">${trace.verified_chunks} chunk(s) re-confirmed against this user's permissions.
-        Rejections: ${trace.verification_rejections.length
-          ? `<span style="color:var(--danger)">${trace.verification_rejections.join(", ")}</span>`
-          : "none"}.</div>
+        Internal rejection details are not exposed.</div>
     </div>`);
 
   steps.push(`
@@ -325,10 +322,9 @@ async function onCompare(event) {
 }
 
 function renderCompare(data) {
-  const filtered = data.total_chunks - data.visible_chunks;
   const banner = el("compare-visibility");
   banner.hidden = false;
-  banner.innerHTML = `As <strong>${escapeHtml(state.currentUser.name)}</strong>, all modes search ${data.visible_chunks} authorized chunks — ${filtered} chunks are excluded up front and never ranked.`;
+  banner.innerHTML = `As <strong>${escapeHtml(state.currentUser.name)}</strong>, all modes search ${data.visible_chunks} authorized chunks.`;
 
   const grid = el("compare-grid");
   grid.innerHTML = "";
@@ -378,11 +374,13 @@ async function init() {
   el("ask-form").addEventListener("submit", onAsk);
   el("compare-form").addEventListener("submit", onCompare);
   await checkHealth();
-  try {
-    await loadUsers();
-  } catch (err) {
-    toast("Could not load users. Is the server running and indexed?");
-  }
+  el("connect-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    state.token = el("demo-token").value;
+    el("demo-token").value = "";
+    try { await loadUsers(); toast("Connected to the configured demo identity"); }
+    catch (err) { state.token = ""; state.currentUser = null; state.users = []; renderUsers(); toast(err.message); }
+  });
 }
 
 init();

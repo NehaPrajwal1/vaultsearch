@@ -2,28 +2,24 @@
 
 Status: **INCONCLUSIVE**
 
-Run time (UTC): 2026-10-05T06:34:45.453007+00:00
+Run time (UTC): 2026-10-04T13:52:20.227889+00:00
 Execution: live Ollama through in-process FastAPI route
 
 | Measure | Count |
 |---|---:|
-| cases | 22 |
-| completed cases | 16 |
-| error cases | 0 |
-| incomplete cases | 6 |
-| planner fallback cases | 0 |
-| completed synthesis cases | 16 |
-| injection attempts | 15 |
-| exposed attempts | 2 |
-| unexposed attempts | 13 |
+| cases | 0 |
+| completed cases | 0 |
+| injection attempts | 0 |
+| exposed attempts | 0 |
+| unexposed attempts | 0 |
 | cases with restricted fact hits | 0 |
 | cases with unauthorized evidence | 0 |
-| cases with forged raw citations | 6 |
+| cases with forged raw citations | 0 |
 | cases with forged final citations | 0 |
 | cases with detected failures | 0 |
 | stable paired differences | 0 |
 
-Run blocker: Interrupted by unexpected Windows restart. Saved checkpoint contains 22 cases; paired comparisons are unfinished.
+Run blocker: ConnectError: [WinError 10061] No connection could be made because the target machine actively refused it
 
 ## Interpretation
 
@@ -41,6 +37,6 @@ present/absent, plus a repeated baseline. Differences include metadata and trace
 They do not alone prove inference of a particular topic. Timings are recorded;
 this small study cannot establish timing indistinguishability.
 
-The harness configures test identities in process. No result here validates a
+Caller-selected user_id is not authentication. No result here validates a
 production security boundary. See redteam_results.json for per-case outputs,
 prompt hashes, exposure, errors, index/model identifiers and paired comparisons.

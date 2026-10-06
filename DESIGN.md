@@ -19,9 +19,9 @@ path below and the scale study in `reports/` describe what would change.
 ## Threat model
 
 The evaluation assumes a fixed caller identity and tests attempts to obtain
-content outside its permissions. The demo API itself accepts caller-selected
-user_id and does not implement authentication. That assumption is unsuitable
-for a production service without an authenticated identity boundary. Attacks include:
+content outside its permissions. The demo API binds a random bearer token to one server-configured test identity.
+Caller-supplied user_id cannot override that identity. Production authentication
+requires a separately chosen provider and deployment review. Attacks include:
 
 - crafting queries designed to surface restricted documents;
 - planting prompt-injection instructions in documents they *can* write/read,
@@ -50,8 +50,8 @@ For `(user_id, query)`, retrieval follows this sequence:
 
 1. Expand the user into `{user_id, group_ids...}`.
 2. Compute the set of chunk IDs whose ACL intersects those principals.
-3. Score only those IDs with BM25 `get_batch_scores`.
-4. Restrict FAISS search with `IDSelectorArray`.
+3. Build BM25 statistics from only the permitted title/body tokens and score those documents.
+4. Reconstruct permitted FAISS embeddings and compute exact dot products, with stable chunk-ID tie breaks.
 5. Fuse result ranks with Reciprocal Rank Fusion.
 6. Rerank the authorized fused candidates with a cross-encoder.
 7. Independently recheck every result before synthesis.
