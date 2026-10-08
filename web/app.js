@@ -1,6 +1,8 @@
 "use strict";
 
 const state = {
+  token: "",
+  searchOnly: true,
   users: [],
   totalChunks: 0,
   currentUser: null,
@@ -40,12 +42,13 @@ function groupChip(group) {
 async function api(path, body) {
   const res = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${state.token}` },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120000),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail || `Request failed (${res.status})`);
+    throw new Error(typeof detail.detail === "string" ? detail.detail : `Request failed (${res.status}); check the input and retry.`);
   }
   return res.json();
 }
@@ -55,9 +58,19 @@ async function api(path, body) {
 async function checkHealth() {
   const pill = el("health-pill");
   try {
-    const res = await fetch("/health");
+    const res = await fetch("/health", {signal: AbortSignal.timeout(10000)});
     if (!res.ok) throw new Error();
-    pill.textContent = "online";
+    const health = await res.json();
+    state.searchOnly = health.search_only !== false;
+    el("ask-btn").disabled = state.searchOnly;
+    el("suggestions").hidden = state.searchOnly;
+    el("ask-input").disabled = state.searchOnly;
+    el("ask-empty").querySelector("p").textContent = state.searchOnly
+      ? "Search-only mode: generated answers are disabled. Open Search evidence."
+      : "Generated answers are untrusted drafts. Verify each claim against the source excerpts.";
+    el("search-mode").innerHTML = (health.retrieval_modes || ["bm25"]).map(mode =>
+      `<option value="${escapeHtml(mode)}">${escapeHtml(MODE_LABELS[mode] || mode)}</option>`).join("");
+    pill.textContent = state.searchOnly ? "search only" : "API online (model not checked)";
     pill.className = "stat-pill ok";
   } catch {
     pill.textContent = "offline";
@@ -66,10 +79,12 @@ async function checkHealth() {
 }
 
 async function loadUsers() {
-  const data = await (await fetch("/api/users")).json();
+  const res = await fetch("/api/users", {signal: AbortSignal.timeout(10000), headers: {Authorization: `Bearer ${state.token}`}});
+  if (!res.ok) throw new Error("Demo token was not accepted");
+  const data = await res.json();
   state.users = data.users;
-  state.totalChunks = data.total_chunks;
-  el("corpus-stat").textContent = `${data.total_chunks} chunks indexed`;
+  state.totalChunks = data.users[0].visible_chunks;
+  el("corpus-stat").textContent = `${state.totalChunks} accessible chunks`;
   renderUsers();
   selectUser(state.users[0]);
 }
@@ -81,11 +96,10 @@ function renderUsers() {
     const card = document.createElement("button");
     card.className = "user-card";
     card.dataset.userId = user.user_id;
-    const pct = Math.round((user.visible_chunks / state.totalChunks) * 100);
     card.innerHTML = `
       <div class="name">
         <span>${escapeHtml(user.name)}</span>
-        <span class="visible">${user.visible_chunks}/${state.totalChunks} · ${pct}%</span>
+        <span class="visible">${user.visible_chunks} accessible chunks</span>
       </div>
       <div class="user-groups">${user.groups.map(groupChip).join("")}</div>`;
     card.addEventListener("click", () => selectUser(user));
@@ -99,8 +113,7 @@ function selectUser(user) {
     c.classList.toggle("is-active", c.dataset.userId === user.user_id);
   });
   el("ask-user-name").textContent = user.name;
-  const pct = Math.round((user.visible_chunks / state.totalChunks) * 100);
-  el("ask-user-visibility").textContent = `can see ${user.visible_chunks} of ${state.totalChunks} chunks (${pct}%)`;
+  el("ask-user-visibility").textContent = `can see ${user.visible_chunks} chunks`;
 }
 
 /* ---------- Ask ---------- */
@@ -127,8 +140,10 @@ function renderAnswer(data) {
 
   const withCitations = escapeHtml(data.answer).replace(
     /\[([A-Za-z0-9_-]+)\]/g,
-    (_, id) => `<cite data-doc="${id}">${id}</cite>`
+    (_, id) => data.citations.includes(id) ? `<cite tabindex="0" role="button" data-doc="${id}">${id}</cite>` : `[${id}]`
   );
+  el("answer-status").textContent = `Generated answer: ${data.trace?.answer_status || "untrusted draft"}`;
+  el("answer-body").classList.toggle("review-required", data.trace?.answer_presentation?.status === "review_required");
   el("answer-body").innerHTML = withCitations || "<em>No answer produced.</em>";
   el("answer-latency").textContent = `${Math.round(data.latency_ms.total)} ms`;
 
@@ -160,7 +175,8 @@ function renderAnswer(data) {
           ${ev.cited ? '<span class="cited-badge">cited</span>' : ""}
         </span>
       </div>
-      <div class="ev-text">${escapeHtml(ev.text.slice(0, 320))}${ev.text.length > 320 ? "&hellip;" : ""}</div>
+      <div class="ev-meta">Chunk: ${escapeHtml(ev.chunk_id)}</div>
+      <div class="ev-text">${escapeHtml(ev.text)}</div>
       <div class="ev-acl"><span class="lbl">visible to:</span> ${acl}</div>`;
     list.appendChild(item);
   }
@@ -171,91 +187,26 @@ function renderAnswer(data) {
 
 function renderTrace(trace, latency) {
   const body = el("trace-body");
-  const steps = [];
+  const critic = trace.critic?.verdict || "not available";
+  body.textContent = `Answer state: ${trace.answer_status || "draft"}. ` +
+    `Verified evidence: ${trace.verified_chunks || 0} chunk(s). ` +
+    `Omitted by evidence budget: ${trace.evidence_omitted || 0}. ` +
+    `Planner fallback: ${Boolean(trace.planner_fallback)}. ` +
+    `Assessment fallback: ${Boolean(trace.assessment_fallback)}. ` +
+    `Synthesis unavailable: ${Boolean(trace.synthesis_fallback)}. ` +
+    `Critic: ${critic} (source agreement only, never a safety verdict).`;
 
-  steps.push(`
-    <div class="trace-step">
-      <div class="t-title">1 · Query planning ${trace.planner_fallback ? "(fallback: single query)" : ""}</div>
-      <div class="t-detail">Decomposed into ${trace.subqueries.length} sub-quer${trace.subqueries.length === 1 ? "y" : "ies"}:
-        ${trace.subqueries.map((q) => `<span class="mono">&ldquo;${escapeHtml(q)}&rdquo;</span>`).join(", ")}
-        · ${Math.round(latency.planning)} ms</div>
-    </div>`);
-
-  const rounds = trace.rounds || [];
-  for (const round of rounds) {
-    const searches = (round.tool_calls || []).filter((c) => c.tool === "search" && !c.error);
-    const others = (round.tool_calls || []).filter((c) => c.tool !== "search");
-    const label = round.type === "plan"
-      ? "2 · Permission-filtered retrieval"
-      : `2 · Agent refinement round ${round.round}`;
-    const reason = round.type === "refine" && round.reason
-      ? `<div class="t-detail"><em>Agent judged evidence insufficient: ${escapeHtml(round.reason)}</em></div>`
-      : "";
-    const details = searches.map((r) => {
-      const filtered = r.total_candidates - r.allowed_candidates;
-      return `
-        <div class="t-detail">
-          Query <span class="mono">&ldquo;${escapeHtml(r.args.query)}&rdquo;</span>:
-          searched ${r.allowed_candidates} authorized chunks
-          (<strong>${filtered}</strong> restricted chunks excluded before scoring),
-          returned ${r.returned}.
-        </div>`;
-    });
-    const toolNotes = others.map((c) => `
-      <div class="t-detail">Tool <span class="mono">${escapeHtml(c.tool)}</span> called${c.error ? ` (error: ${escapeHtml(c.error)})` : ""}.</div>`);
-    steps.push(`
-      <div class="trace-step">
-        <div class="t-title">${label}</div>
-        ${reason}${details.join("")}${toolNotes.join("")}
-      </div>`);
-    if (round.assessment && round.assessment.sufficient) {
-      steps.push(`
-        <div class="trace-step">
-          <div class="t-title">2 · Sufficiency check · ${Math.round(latency.assessment || 0)} ms</div>
-          <div class="t-detail">Agent judged the gathered evidence sufficient${round.assessment.reason ? `: ${escapeHtml(round.assessment.reason)}` : ""}.</div>
-        </div>`);
-    }
-  }
-
-  steps.push(`
-    <div class="trace-step">
-      <div class="t-title">3 · Independent verification · ${Math.round(latency.verification)} ms</div>
-      <div class="t-detail">${trace.verified_chunks} chunk(s) re-confirmed against this user's permissions.
-        Rejections: ${trace.verification_rejections.length
-          ? `<span style="color:var(--danger)">${trace.verification_rejections.join(", ")}</span>`
-          : "none"}.</div>
-    </div>`);
-
-  steps.push(`
-    <div class="trace-step">
-      <div class="t-title">4 · Answer synthesis &amp; citation sanitization · ${Math.round(latency.synthesis)} ms</div>
-      <div class="t-detail">Answer generated from verified evidence only; unauthorized or invented citations stripped.</div>
-    </div>`);
-
-  const critic = trace.critic || {};
-  if (critic.verdict && critic.verdict !== "skipped" && critic.verdict !== "unavailable") {
-    const cls = critic.verdict === "grounded" ? "" : ' style="color:var(--danger)"';
-    const claims = (critic.unsupported_claims || []).length
-      ? ` Unsupported claims flagged: ${critic.unsupported_claims.map((c) => `&ldquo;${escapeHtml(c)}&rdquo;`).join("; ")}`
-      : "";
-    steps.push(`
-      <div class="trace-step">
-        <div class="t-title">5 · Groundedness critic (advisory) · ${Math.round(latency.critic || 0)} ms</div>
-        <div class="t-detail">Verdict: <strong${cls}>${escapeHtml(critic.verdict.replace("_", " "))}</strong>.${claims}</div>
-      </div>`);
-  }
-
-  body.innerHTML = steps.join("");
 }
 
 function wireCitationClicks() {
   document.querySelectorAll("cite[data-doc]").forEach((c) => {
+    c.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); c.click(); } });
     c.addEventListener("click", () => {
       const target = document.querySelector(`.evidence-item[data-doc="${c.dataset.doc}"]`);
       if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "center" });
         target.style.transition = "outline 0.2s";
-        target.style.outline = "2px solid var(--brand)";
+        target.style.outline = "2px solid var(--primary-strong)";
         setTimeout(() => (target.style.outline = "none"), 1200);
       }
     });
@@ -265,13 +216,16 @@ function wireCitationClicks() {
 async function onAsk(event) {
   event.preventDefault();
   const question = el("ask-input").value.trim();
-  if (!question || !state.currentUser) return;
+  if (!question || !state.currentUser || state.searchOnly) return;
   const btn = el("ask-btn");
   btn.disabled = true;
   btn.textContent = "Thinking";
   el("ask-empty").hidden = true;
   el("ask-result").hidden = false;
+  el("answer-body").classList.remove("review-required");
   el("answer-body").innerHTML = `<div class="loading"><span class="spinner"></span> Planning, retrieving, verifying, and synthesizing&hellip;</div>`;
+  el("answer-status").textContent = "Generating untrusted draft";
+  el("answer-latency").textContent = "";
   el("answer-citations").innerHTML = "";
   el("evidence-list").innerHTML = "";
   el("evidence-count").textContent = "";
@@ -283,7 +237,8 @@ async function onAsk(event) {
     });
     renderAnswer(data);
   } catch (err) {
-    el("answer-body").innerHTML = `<span style="color:var(--danger)">${escapeHtml(err.message)}</span>`;
+    el("answer-status").textContent = "Answer unavailable";
+    el("answer-body").textContent = `${err.message}. Use Search evidence to inspect permitted sources.`;
     toast(err.message);
   } finally {
     btn.disabled = false;
@@ -303,16 +258,18 @@ const MODE_LABELS = {
 async function onCompare(event) {
   event.preventDefault();
   const query = el("compare-input").value.trim();
-  if (!query || !state.currentUser) return;
+  if (!state.currentUser) { toast("Connect with the demo token before searching."); return; }
+  if (!query) return;
   const btn = el("compare-btn");
   btn.disabled = true;
   btn.textContent = "Running";
-  el("compare-grid").innerHTML = `<div class="loading"><span class="spinner"></span> Running all four retrieval modes&hellip;</div>`;
+  el("compare-grid").innerHTML = `<div class="loading"><span class="spinner"></span> Searching permitted evidence&hellip;</div>`;
   el("compare-visibility").hidden = true;
   try {
     const data = await api("/api/search", {
       user_id: state.currentUser.user_id,
       query,
+      mode: el("search-mode").value,
     });
     renderCompare(data);
   } catch (err) {
@@ -320,24 +277,23 @@ async function onCompare(event) {
     toast(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = "Compare";
+    btn.textContent = "Search";
   }
 }
 
 function renderCompare(data) {
-  const filtered = data.total_chunks - data.visible_chunks;
   const banner = el("compare-visibility");
   banner.hidden = false;
-  banner.innerHTML = `As <strong>${escapeHtml(state.currentUser.name)}</strong>, all modes search ${data.visible_chunks} authorized chunks — ${filtered} chunks are excluded up front and never ranked.`;
+  banner.innerHTML = `As <strong>${escapeHtml(state.currentUser.name)}</strong>, search covers ${data.visible_chunks} authorized chunks.`;
 
   const grid = el("compare-grid");
   grid.innerHTML = "";
-  for (const mode of ["bm25", "vector", "hybrid", "hybrid+rerank"]) {
+  for (const mode of Object.keys(data.modes)) {
     const md = data.modes[mode];
     const lat = md.latency_ms.total ? `${Math.round(md.latency_ms.total)} ms` : "";
     const card = document.createElement("div");
     card.className = "mode-card";
-    const rows = md.results.length
+    const rows = md.error ? `<p class="muted">${escapeHtml(md.error)}</p>` : md.results.length
       ? md.results
           .map(
             (r, i) => `
@@ -345,9 +301,10 @@ function renderCompare(data) {
           <div class="mr-title">${i + 1}. ${escapeHtml(r.title)}</div>
           <div class="mr-meta">
             <span class="chip chip-src">${escapeHtml(r.source)}</span>
-            <span class="mono">${escapeHtml(r.doc_id)}</span>
+            <span class="mono">${escapeHtml(r.doc_id)} / ${escapeHtml(r.chunk_id)}</span>
             <span class="score-badge">${r.score}</span>
           </div>
+          <details><summary>Read source excerpt (untrusted)</summary><p class="ev-text">${escapeHtml(r.text)}</p></details>
         </div>`
           )
           .join("")
@@ -362,9 +319,10 @@ function renderCompare(data) {
 function wireTabs() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach((t) => t.classList.remove("is-active"));
+      document.querySelectorAll(".tab").forEach((t) => { t.classList.remove("is-active"); t.setAttribute("aria-selected", "false"); });
       document.querySelectorAll(".panel").forEach((p) => p.classList.remove("is-active"));
       tab.classList.add("is-active");
+      tab.setAttribute("aria-selected", "true");
       document.querySelector(`.panel[data-panel="${tab.dataset.tab}"]`).classList.add("is-active");
     });
   });
@@ -378,11 +336,22 @@ async function init() {
   el("ask-form").addEventListener("submit", onAsk);
   el("compare-form").addEventListener("submit", onCompare);
   await checkHealth();
-  try {
-    await loadUsers();
-  } catch (err) {
-    toast("Could not load users. Is the server running and indexed?");
-  }
+  el("connect-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    state.currentUser = null;
+    state.users = [];
+    renderUsers();
+    el("ask-result").hidden = true;
+    el("compare-grid").innerHTML = "";
+    el("compare-visibility").hidden = true;
+    el("corpus-stat").textContent = "Not connected";
+    el("ask-user-name").textContent = "â€”";
+    el("ask-user-visibility").textContent = "";
+    state.token = el("demo-token").value;
+    el("demo-token").value = "";
+    try { await loadUsers(); toast("Connected to the configured demo identity"); }
+    catch (err) { state.token = ""; state.currentUser = null; state.users = []; renderUsers(); toast(err.message); }
+  });
 }
 
 init();

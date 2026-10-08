@@ -1,0 +1,3 @@
+-r requirements-search.txt
+# Lightweight vector primitive tests only; no model download or inference.
+faiss-cpu==1.15.1

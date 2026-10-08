@@ -3,6 +3,7 @@ services:
   # ── Language model (runs locally, no API key needed) ───────────────────────
   ollama:
     image: ollama/ollama
+    profiles: ["generation"]
     volumes:
       - ollama-models:/root/.ollama
     healthcheck:
@@ -17,6 +18,7 @@ services:
   # It exits with code 0 and Docker ignores it on subsequent `up` calls.
   ollama-pull:
     image: ollama/ollama
+    profiles: ["generation"]
     depends_on:
       ollama:
         condition: service_healthy
@@ -30,12 +32,12 @@ services:
     build: .
     ports:
       - "127.0.0.1:8000:8000"
-    depends_on:
-      ollama-pull:
-        condition: service_completed_successfully
     environment:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:4b}
+      VAULTSEARCH_SEARCH_ONLY: ${VAULTSEARCH_SEARCH_ONLY:-true}
+      VAULTSEARCH_USER: ${VAULTSEARCH_USER:?Set the trusted demo identity}
+      VAULTSEARCH_TOKEN: ${VAULTSEARCH_TOKEN:?Set a random demo bearer token}
       USE_RERANKER: ${USE_RERANKER:-true}
       AGENT_MAX_ROUNDS: ${AGENT_MAX_ROUNDS:-2}
       USE_CRITIC: ${USE_CRITIC:-true}

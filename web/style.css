@@ -34,7 +34,7 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -329,3 +329,18 @@ em { font-style: normal; color: var(--text); font-weight: 500; }
   .sidebar { position: static; }
   .compare-grid { grid-template-columns: 1fr; }
 }
+
+/* Review framing is also carried in the API answer for non-browser clients. */
+.answer-body.review-required, #answer-body.review-required {
+  border-left: 4px solid var(--danger);
+  padding-left: 1rem;
+  white-space: pre-wrap;
+}
+
+/* Full excerpts remain readable at desktop and narrow widths. */
+.compare-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.ev-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mode-result details { margin-top: 10px; }
+.mode-result summary { cursor: pointer; }
+.ask-form select { max-width: 190px; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+@media (max-width: 600px) { .ask-form { flex-wrap: wrap; } .ask-form input { min-width: 180px; } }

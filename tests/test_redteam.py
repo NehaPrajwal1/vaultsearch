@@ -149,3 +149,34 @@ def test_critic_only_exposure_does_not_count_as_pre_answer_attack():
     recorder = RecordingLLM(CriticOnly(), {"payload": PAYLOAD})
     recorder.chat_json("You check whether", PAYLOAD)
     assert recorder.calls[0]["stage"] == "critic"
+
+
+def test_interrupted_run_preserves_completed_cases(monkeypatch, tmp_path):
+    import json
+    import httpx
+    import sys
+    import app.retrieval_core
+    import redteam.run_redteam as runner
+    llm = Model()
+    llm.model, llm.base_url = "scripted-test", "http://localhost"
+    monkeypatch.setattr(runner, "OllamaClient", lambda **kw: llm)
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: httpx.Response(200, json={"models":[], "version":"fixture"}, request=httpx.Request("GET",url)))
+    monkeypatch.setattr(app.retrieval_core, "Retriever", lambda *a, **kw: FakeRetriever(make_chunks(), make_identity()))
+    monkeypatch.setattr(sys, "argv", ["run_redteam", "--output-dir", str(tmp_path)])
+    count = 0
+    def case(*args):
+        nonlocal count
+        count += 1
+        if count == 2:
+            # The first case is already checkpointed before interruption.
+            saved = json.loads((tmp_path / "redteam_results.json").read_text())
+            assert len(saved["cases"]) == 1
+            assert saved["summary"]["incomplete"]
+            raise KeyboardInterrupt
+        return {"status":"completed", "family":"injection", "exposed_payload_ids":["fixture"], "completed_synthesis":True}
+    monkeypatch.setattr(runner, "evaluate_case", case)
+    assert runner.main() == 2
+    saved = json.loads((tmp_path / "redteam_results.json").read_text())
+    assert len(saved["cases"]) == 1
+    assert saved["summary"]["status"] == "INCONCLUSIVE"
+    assert "interrupted" in saved["summary"]["error"]

@@ -1,5 +1,7 @@
 """Real retrieval/API measurements without an LLM; never counts retrieval as prompt exposure."""
 import json
+import hashlib
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,7 +11,7 @@ sys.path.insert(0, str(ROOT))
 from app.acl import IdentityStore, can_access
 from app.retrieval_core import Retriever
 from redteam.run_redteam import (
-    PAIR_QUESTIONS, QUESTIONS, fingerprint, make_client, stable_response, without_hidden,
+    PAIR_QUESTIONS, QUESTIONS, changed_paths, fingerprint, make_client, stable_response, without_hidden,
 )
 
 
@@ -34,7 +36,7 @@ def main():
         for variant in (retriever, retriever, absent):
             client = make_client(variant, identity, None)  # /search never uses the LLM
             try:
-                response = client.post("/api/search", json={"user_id": "user:ines", "query": question})
+                response = client.post("/api/search", json={"user_id": "user:ines", "query": question, "mode": "all"})
                 response.raise_for_status()
                 samples.append(response.json())
             finally:
@@ -44,11 +46,14 @@ def main():
             "question": question, "baseline_stable": a == b,
             "response_changed": a != c, "stable_difference": a == b and a != c,
             "changed_fields": sorted(k for k in a.keys() | c.keys() if a.get(k) != c.get(k)),
+            "changed_paths": changed_paths(a, c),
             "responses": samples,
         })
     report = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "execution": "real BM25, MiniLM embeddings, FAISS, cross-encoder, and /api/search; no LLM",
+        "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "source_sha256": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for folder in ("app", "redteam") for p in (ROOT / folder).glob("*.py")},
         "corpus_sha256": fingerprint(retriever.chunks),
         "injection_retrieval_cases": rows, "paired_cases": pairs,
         "unauthorized_chunk_count": sum(len(r["unauthorized_chunks"]) for r in rows),
@@ -63,9 +68,9 @@ def main():
              f"- Cases retrieving injection chunks: {report['cases_retrieving_injection_chunks']}",
              f"- Stable paired response differences: {report['stable_paired_differences']} / {len(pairs)}",
              "", "Retrieved injection chunks are NOT measured LLM exposure.",
-             "Paired differences disprove identical search responses in these cases;",
+             "Any paired differences indicate changed non-timing fields in these cases;",
              "they do not alone establish inference of any particular hidden topic.",
-             "The persona API is unauthenticated. These results do not validate a production boundary.",
+             "The harness uses a server-bound test identity; this does not validate production authentication.",
              "Full responses and changed fields are in retrieval_probe.json."]
     (ROOT / "reports/retrieval_probe.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))

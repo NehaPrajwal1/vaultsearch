@@ -1,0 +1,9 @@
+# Search-only portfolio demo; no torch, embedding models, FAISS or Ollama.
+numpy==2.3.5
+rank-bm25==0.2.2
+fastapi==0.142.2
+uvicorn==0.54.0
+pydantic==2.13.5
+httpx==0.28.1
+mcp==1.30.0
+pytest==9.1.1

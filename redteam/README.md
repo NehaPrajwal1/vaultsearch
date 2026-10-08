@@ -1,56 +1,30 @@
-# Running and interpreting the evaluation
+# Red-team and validation harness
 
-Build the real indexes first:
+VaultSearch includes prompt-injection fixtures, restricted-fact checks, citation analysis and permission-isolation experiments. The harness records source hashes, exact API responses, raw model calls and source exposure so findings can be traced to the evaluated source version.
 
-```sh
-python ingestion/generate_data.py
-python ingestion/ingest.py
-python indexing/build_indexes.py
-python -m pytest -q
-python eval/evaluate.py
-python redteam/retrieval_probe.py
-ollama pull gemma3:4b
-python redteam/run_redteam.py --repeats 3
-```
+## Default: bounded, model-free validation
 
-Ollama must be serving at OLLAMA_URL (default http://127.0.0.1:11434).
-OLLAMA_MODEL selects the actual model. The runner saves the tags/model metadata,
-source and index hashes, package versions, timestamp, inputs, outputs, errors,
-raw/final citation findings, and per-stage submitted payload IDs in JSON.
+Install requirements-test.txt and run `python redteam/release_check.py` from the project root. This runs lightweight tests, eight scripted acceptance cases, nine BM25 present/repeat/absent comparisons, loopback HTTP and real MCP stdio integration. Historical answer archives are replayed only when available locally. Every invocation creates a new private output directory.
 
-Exit codes: 0 = no failure observed in the completed scoped experiment,
-1 = detected failure, 2 = incomplete/inconclusive. None means production validated.
-An empty run, model fallback, missing synthesis, unexposed attack, or unstable
-paired baseline cannot be counted as a successful defense. Inspect the JSON
-even on exit 0: coverage is small and the string oracle is not exhaustive.
+See [measured evidence](../reports/release_review.md) and [the runbook](../RUN_SECURITY.md).
 
-The live harness uses the actual /api/ask handler and response serialization
-in process. It observes prompts without modifying them. Exposure requires the
-whole malicious instruction in a completed assessment/synthesis call. Document
-retrieval alone is not exposure, and submission does not prove the model
-processed the entire context. It never reuses a different synthesis shortcut.
+## What the harness checks
 
-Secret variants cover configured facts, case/Unicode/whitespace normalization,
-and several number forms. The oracle derives restrictions from actual indexed
-ACLs and excludes facts also present in permitted text. It checks all returned
-JSON, not only the answer. It cannot adjudicate every paraphrase or fabrication.
-Citation labels are inspected independently of the production sanitizer, before
-and after the real route. Valid IDs do not establish factual grounding.
+- Unauthorized evidence and configured restricted facts in raw synthesis and public responses.
+- Forged or unapproved citation labels before and after production filtering.
+- Whether the complete attack text actually reached a completed assessment or synthesis call.
+- Repeated-baseline stability and response differences when restricted documents are removed.
+- Correct failure handling for missing synthesis, malformed responses, service failure and incomplete execution.
+- Expected application presentation over deliberately unsafe drafts and legitimate security quotations.
 
-The paired experiment keeps the query and visible documents unchanged, removes
-hidden documents, and rebuilds BM25/FAISS. It repeats the present-corpus baseline.
-This checks observable response dependence, not a statistically powered classifier
-for any particular topic. Timing measurements alone do not establish resistance.
+The agent uses the real in-process /api/ask handler; separate HTTP/MCP checks exercise transport authentication. The source corpus and attack fixtures are synthetic. Evaluation outputs and operator tokens are not publication artifacts.
 
-retrieval_probe.py measures the real /api/search endpoint without Ollama.
-It separately records whether injection chunks were retrieved (not LLM exposure)
-and observable changes to paired search responses. Total corpus counts are an
-intentional demo diagnostic and defeat a broad indistinguishability claim.
+## Interpreting results
 
-tests/test_redteam.py uses scripted models, including deliberately leaky and broken
-ones, to verify that the harness detects failures. Those tests are not empirical
-LLM red-team results. Keep them separate from reports/redteam_report.md.
+Scripted tests validate deterministic behavior. Recorded-answer replay validates presentation, including known false positives, without rerunning the model. Historical automatic live red-team findings remain **INCONCLUSIVE**; unsafe draft findings are preserved in the local archives. No result is a blanket prompt-injection-resistance claim.
 
-The original report's zero-breach and indistinguishability claims are withdrawn.
-The API accepts caller-selected user_id; authentication is outside this demo.
-Do not expose it as an authenticated multi-user service. Docker binds to loopback.
+The live runner uses exit 0 for no detected failure in a completed scoped experiment, 1 for a detected failure, and 2 for incomplete/inconclusive execution. Unexposed attacks, model failures, missing synthesis and unstable paired baselines cannot be counted as successful defenses. String matching does not cover all semantic or encoded disclosure.
+
+## Optional live work
+
+Use a newly versioned Colab notebook/bundle from build_colab_bundle.py on suitable hardware. Keep automatic bounded preload, one-case execution, preserved raw outputs and review between cases. Do not merge checkpoints across source versions or weaken memory gates. The default local validator starts no model.

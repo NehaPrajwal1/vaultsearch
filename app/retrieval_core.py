@@ -9,8 +9,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import faiss
 import numpy as np
+from rank_bm25 import BM25Okapi
 
 from .acl import IdentityStore, can_access
 
@@ -58,9 +58,20 @@ class Retriever:
         index_dir: str | Path,
         identity: IdentityStore,
         use_reranker: bool = True,
+        search_only: bool = False,
     ):
         index_dir = Path(index_dir)
         self.identity = identity
+        self.search_only = search_only
+        if search_only:
+            corpus_path = index_dir.parent / "data" / "chunks.json"
+            if not corpus_path.exists():
+                raise RuntimeError("Missing data/chunks.json; run ingestion/ingest.py first.")
+            self.chunks = json.loads(corpus_path.read_text(encoding="utf-8"))
+            self.reranker = None
+            return
+        import faiss
+
         with open(index_dir / "bm25.pkl", "rb") as file:
             self.bm25 = pickle.load(file)
         self.faiss_index = faiss.read_index(str(index_dir / "vectors.faiss"))
@@ -87,8 +98,14 @@ class Retriever:
     def _bm25_search(
         self, query: str, allowed: list[int], top_k: int
     ) -> list[int]:
-        scores = self.bm25.get_batch_scores(tokenize(query), allowed)
-        order = np.argsort(scores)[::-1][:top_k]
+        if not allowed:
+            return []
+        # Compute IDF/length normalization only from authorized documents.
+        corpus = [tokenize(self.chunks[i]["title"] + " " + self.chunks[i]["text"]) for i in allowed]
+        if not any(corpus):
+            return []
+        scores = BM25Okapi(corpus).get_scores(tokenize(query))
+        order = sorted(range(len(allowed)), key=lambda i: (-scores[i], self.chunks[allowed[i]]["chunk_id"]))[:top_k]
         return [allowed[index] for index in order if scores[index] > 0]
 
     def _vector_search(
@@ -97,14 +114,11 @@ class Retriever:
         query_vector = self.embedder.encode(
             [query], normalize_embeddings=True
         ).astype(np.float32)
-        selector = faiss.IDSelectorArray(np.asarray(allowed, dtype=np.int64))
-        params = faiss.SearchParameters(sel=selector)
-        _, ids = self.faiss_index.search(
-            query_vector,
-            min(top_k, len(allowed)),
-            params=params,
-        )
-        return [int(index) for index in ids[0] if index >= 0]
+        # Exact scoring of permitted vectors, with corpus-independent tie breaking.
+        vectors = np.asarray([self.faiss_index.reconstruct(i) for i in allowed], dtype=np.float32)
+        scores = vectors @ query_vector[0]
+        order = sorted(range(len(allowed)), key=lambda j: (-float(scores[j]), self.chunks[allowed[j]]["chunk_id"]))[:top_k]
+        return [allowed[j] for j in order]
 
     def _rerank(
         self, query: str, candidate_ids: list[int], top_n: int
@@ -117,7 +131,7 @@ class Retriever:
             for index in candidate_ids
         ]
         scores = self.reranker.predict(pairs)
-        order = np.argsort(scores)[::-1][:top_n]
+        order = sorted(range(len(candidate_ids)), key=lambda i: (-float(scores[i]), self.chunks[candidate_ids[i]]["chunk_id"]))[:top_n]
         return [(candidate_ids[index], float(scores[index])) for index in order]
 
     def search(
@@ -128,6 +142,8 @@ class Retriever:
         top_n: int = 8,
         mode: str = "hybrid+rerank",
     ) -> RetrievalResult:
+        if getattr(self, "search_only", False) and mode != "bm25":
+            raise ValueError("Only bm25 is enabled in search-only mode")
         latency: dict[str, float] = {}
         total_start = time.perf_counter()
         principals = self.identity.expand_principals(user_id)

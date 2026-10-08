@@ -10,6 +10,7 @@ of the system, and every execution is recorded in a call log for the trace.
 from __future__ import annotations
 
 import time
+import logging
 from dataclasses import dataclass, field
 
 from .acl import IdentityStore, can_access
@@ -82,7 +83,6 @@ class Toolbox:
                 execution.payload = {
                     "returned": len(result.chunks),
                     "allowed_candidates": result.candidates_allowed,
-                    "total_candidates": result.candidates_total,
                     "stage_latency_ms": result.stage_latency_ms,
                 }
             elif tool == "lookup_person":
@@ -91,8 +91,11 @@ class Toolbox:
                 execution.payload = self.list_my_sources()
             else:
                 execution.error = f"unknown tool: {tool}"
-        except KeyError as exc:
-            execution.error = f"missing argument: {exc}"
+        except KeyError:
+            execution.error = "Missing tool argument or unavailable source field"
+        except Exception:
+            logging.getLogger(__name__).exception("Tool execution unavailable")
+            execution.error = "Tool execution unavailable; retry keyword search"
         execution.latency_ms = (time.perf_counter() - start) * 1000
         self.calls.append(execution)
         return execution
@@ -121,5 +124,4 @@ class Toolbox:
         return {
             "sources": dict(sorted(per_source.items())),
             "visible_chunks": visible,
-            "total_chunks": len(self.retriever.chunks),
         }

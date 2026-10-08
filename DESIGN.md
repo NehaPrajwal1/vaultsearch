@@ -1,175 +1,42 @@
-# VaultSearch Design
+# VaultSearch system design
 
-## Goals
+## Data and identity
 
-VaultSearch is a local permission-aware RAG prototype. It aims to restrict
-retrieved evidence to the selected identity. This is not a validated guarantee
-of non-disclosure, factual grounding, or existence indistinguishability.
-See `RESTORATION.md` for the recovered implementation's provenance and
-`reports/redteam_report.md` for the current evaluation status.
+Synthetic Drive, Slack and ticket records normalize into documents and overlapping chunks. Every chunk inherits its document ACL. The corpus contains 513 chunks, 12 personas and 6 groups. The API binds a bearer token to an operator-configured identity; data requests cannot override that identity. The directory exposes intentionally org-public names and group memberships.
 
-The primary invariant is stronger than answer-level redaction: unauthorized
-text must never reach ranking, reranking, or the model's context in the first
-place, and everything the model produces is treated as untrusted output.
+## Retrieval path
 
-Non-goals include production-scale tenancy, real third-party connectors,
-distributed indexing, and high availability. Where those matter, the scaling
-path below and the scale study in `reports/` describe what would change.
+1. Expand the bound identity into user and group principals.
+2. Select chunks whose ACL intersects those principals.
+3. Compute BM25 statistics and scores using only the permitted corpus.
+4. In full mode, reconstruct permitted FAISS vectors and calculate normalized dot-product scores.
+5. Fuse sparse and dense rankings with reciprocal-rank fusion; optionally apply a cross-encoder to permitted candidates.
+6. Recheck returned chunk permissions before evidence reaches synthesis. Stable chunk-ID tie breaks keep ordering deterministic.
 
-## Threat model
+Search-only startup reads the synthetic corpus directly and does not initialize embedding, reranking or generation models. The browser presents complete excerpts and document/chunk IDs independently of the answer pipeline.
 
-The evaluation assumes a fixed caller identity and tests attempts to obtain
-content outside its permissions. The demo API itself accepts caller-selected
-user_id and does not implement authentication. That assumption is unsuitable
-for a production service without an authenticated identity boundary. Attacks include:
+## Answer orchestration
 
-- crafting queries designed to surface restricted documents;
-- planting prompt-injection instructions in documents they *can* write/read,
-  hoping the model will reveal other teams' data;
-- relying on the model to fabricate or forge citations to restricted material;
-- inferring, from answers or refusals, that a restricted document exists.
+The planner proposes validated tool calls. A Toolbox is bound to one identity and exposes search, lookup_person and list_my_sources. An assessor may request up to two additional evidence-refinement rounds. Evidence is deduplicated, budgeted and permission-checked; synthesis receives the selected evidence. Citation labels are filtered to that evidence. The groundedness critic is advisory source agreement.
 
-Out of scope: a compromised host, a malicious operator, side channels below the
-application, and incorrect ACLs supplied by an upstream source of truth
-(VaultSearch enforces the ACLs it is given; it does not adjudicate them).
+Flagged answers are replaced by a fixed application-written message without draft citations or model-written trace text. Evidence remains visible. Raw model responses are retained by evaluation recorders, not hidden fields in the public API. Unflagged answers remain untrusted; presentation checks are not a comprehensive safety detector.
 
-## Architecture
+## API and client boundary
 
-The ingestion layer normalizes Slack-like threads, Drive-like documents, and
-ticket records into `Document`, then creates overlapping `Chunk` records.
-Each chunk inherits its parent ACL exactly.
+FastAPI serves the UI and authenticated data routes. Search defaults to BM25; optional full-mode retrieval supports vector, hybrid, hybrid+rerank and explicit all-mode comparison. /api/users returns the bound identity only. The four MCP tools forward via HTTP through the same identity boundary; they accept no identity parameter.
 
-The indexing layer builds:
+Model requests have per-call timeouts and a scheduling budget. A transport failure stops subsequent model requests in that request. Explicit states distinguish disabled generation, no evidence, withheld output, unavailable synthesis and retrieval failure. Keyword search remains an independent path. The UI uses local assets, renders untrusted source text, and provides citation navigation.
 
-- a BM25 index over tokenized title and body text;
-- a FAISS inner-product index over normalized MiniLM embeddings;
-- a metadata array that maps index positions to chunk IDs, source data, and
-  ACLs.
+## Red-team methodology
 
-For `(user_id, query)`, retrieval follows this sequence:
+The harness invokes the actual API handler, records synthesis/assessment exposure and raw outputs, checks restricted-fact variants and citations, and compares present/repeat/absent corpus variants. Scripted tests include deliberately unsafe and broken model responses to exercise the harness and presentation policy. Live-model measurements, scripted acceptance and recorded-answer replay are separate evidence categories.
 
-1. Expand the user into `{user_id, group_ids...}`.
-2. Compute the set of chunk IDs whose ACL intersects those principals.
-3. Score only those IDs with BM25 `get_batch_scores`.
-4. Restrict FAISS search with `IDSelectorArray`.
-5. Fuse result ranks with Reciprocal Rank Fusion.
-6. Rerank the authorized fused candidates with a cross-encoder.
-7. Independently recheck every result before synthesis.
+See [the methodology](redteam/README.md) and [measured results](reports/release_review.md).
 
-The orchestrator asks Ollama for a bounded list of standalone subqueries and
-executes them as tool calls against a `Toolbox` (`app/tools.py`) bound to one
-user identity at construction — no tool accepts a user_id argument, so the
-model chooses what to call, never whose permissions apply. After the initial
-round, an LLM assessor judges whether the verified evidence suffices; if not,
-it proposes further tool calls (rephrased searches, directory lookups), each
-validated by deterministic code and capped at `AGENT_MAX_ROUNDS` refinement
-rounds. Results are deduplicated, permissions are re-verified in deterministic
-code over the final merged set (after the loop, so no tool use can route
-around it), and Ollama synthesizes an answer using only verified evidence.
-Citations are intersected with verified document IDs before being returned,
-and an advisory groundedness critic reviews the sanitized answer without
-enforcing anything.
+## Optional infrastructure
 
-The same boundary is exported to external agents via `mcp_server.py`: MCP
-tools with the identity pinned per server process, never per call.
+Docker Compose supplies separate generation and cloud profiles. Terraform describes S3 source/artifact storage, SQS ingestion and DynamoDB audit storage using LocalStack endpoints. The optional audit mirror is best-effort; local audit logging remains independent. These are included implementation/configuration paths, while the release's measured runtime is native search-only.
 
-The FastAPI layer serves both the JSON API and a static web interface. `/api/ask`
-returns the answer, citations, the verified evidence, a stage-by-stage trace,
-and per-stage latency. `/api/search` runs all four retrieval modes over the same
-authorized candidate set for side-by-side comparison. `/api/users` reports each
-identity and how many chunks it can see. The UI is dependency-free HTML/CSS/JS
-so it needs no build step and is easy to audit.
+## Engineering choices
 
-## Security invariants
-
-- Unknown users have no principals and retrieve nothing.
-- Empty ACLs deny access except to an explicit admin group.
-- Chunking cannot widen access.
-- ACLs are applied before both sparse and dense scoring.
-- LLM output never grants access and cannot create a valid citation to an
-  unauthorized document.
-- A second verifier detects regressions in the retrieval boundary.
-- Audit logs record user, plan, candidate counts, citations, verification
-  rejections, and stage timings without logging hidden restricted candidates.
-
-Tests exercise each invariant. The adversarial evaluation additionally searches
-returned text for distinctive secrets from documents the test user cannot read.
-
-## Attacking the model layer
-
-The runner exercises the real in-process `/api/ask` endpoint. It records exact
-payload submission at assessment and synthesis calls, model errors, raw/final
-citation labels, restricted fact variants, and per-case API responses. Unexposed
-attacks and model outages are inconclusive, not successful defenses.
-
-Existence evaluation keeps the query and visible corpus fixed while removing
-hidden documents, rebuilding BM25 and FAISS. A repeated baseline helps identify
-model variability. Response differences retain counts, scores, and traces;
-timing is recorded separately without claiming a statistical timing guarantee.
-
-Known limitations: total corpus counts reveal hidden-corpus size; global BM25
-statistics may influence visible rankings; the citation sanitizer does not enforce
-factual grounding; normalized string checks miss some paraphrases/encodings;
-and the suite is small. Old zero-leak and indistinguishability claims are withdrawn.
-
-## Key trade-offs
-
-### Pre-filter versus post-filter
-
-Post-filtering a global top-k can leak data into rerankers or prompts and can
-return too few permitted results. Pre-filtering avoids both problems. The scale
-study (`reports/scale_study.md`) quantifies this up to one million vectors: with
-a fixed over-fetch budget, post-filter recall collapses to ~0.45 once a user can
-see only 0.2% of the corpus, while pre-filter recall stays exact and its latency
-*drops* as ACLs tighten (the selector confines the scan to authorized IDs). The
-local implementation calculates authorized IDs per query; a production service
-would cache user/group expansion and maintain compressed ACL bitmaps, and move
-from a flat index to a sharded ANN index with ACL-aware partitioning.
-
-### RRF versus learned fusion
-
-Sparse and dense scores have incompatible scales. RRF is deterministic,
-training-free, and robust enough for this corpus. Learned fusion may improve
-quality but adds labels, drift, and debugging complexity.
-
-### Local FAISS versus managed vector storage
-
-FAISS is zero-cost and makes the permission boundary visible in code. It lacks
-distributed durability, incremental replication, and native metadata indexing.
-At enterprise scale, the same interface would sit over a sharded vector service
-with server-side ACL predicates.
-
-### Local Ollama versus a hosted model
-
-Ollama removes cloud cost and keeps evidence on the machine. It has lower
-throughput and weaker structured-output reliability than some hosted models, so
-planning has strict validation and a safe single-query fallback. Authorization
-does not depend on model reliability.
-
-## Reliability and observability
-
-Models and indexes load once during the FastAPI lifespan. `/health` supports
-container health checks. Every `/ask` emits one JSON-line audit event. Retrieval
-reports per-stage latency, candidate counts, and total latency. If Ollama is
-unavailable, retrieval remains functional and synthesis returns a bounded
-availability message rather than fabricated content.
-
-## Cloud-native layer
-
-`cloud/` is an optional, additive restructuring of the offline pipeline
-around AWS primitives, emulated locally with LocalStack and provisioned with
-Terraform (the same HCL applies to real AWS): raw sources in S3, S3 events
-driving an SQS-consuming ingest worker that runs the unchanged
-chunking-inherits-ACL pipeline, built indexes published to an artifacts
-bucket, and audit events mirrored (best-effort, never blocking the answer
-path) to a DynamoDB table keyed by user for one-Query security review. The
-core demo remains fully functional without it; ACLs travel inside the
-documents so the transport layer cannot widen access.
-
-## Scaling path
-
-A production version would add incremental connector checkpoints, document
-versioning and deletion, sharded sparse/vector indexes, cached ACL expansion,
-group-membership invalidation, replicas, backpressure, request deadlines,
-distributed tracing, and SLO dashboards. Security tests would include nested
-groups, revocation races, malformed connector ACLs, and tenant isolation.
+ACL prefiltering keeps unauthorized text out of ranking candidates and model context. Permitted-corpus BM25 prevents hidden documents from changing visible term statistics. RRF combines ranks without calibrating unlike sparse/dense score scales. A deterministic verifier keeps authorization outside the model. Separate presentation and evaluation layers permit raw-output analysis while controlling the public response.

@@ -1,0 +1,188 @@
+{
+  "review_date_local": "2026-10-08",
+  "timezone": "Asia/Calcutta",
+  "status": "LOCAL_CHECKS_PASSED",
+  "execution": "model-free release validation in a clean publication worktree",
+  "source_base": "7622b04965449e61f00743e9a2d3767a1ad88bb2",
+  "runtime": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "packages": {
+      "numpy": "2.3.5",
+      "rank-bm25": "0.2.2",
+      "faiss-cpu": "1.15.1",
+      "fastapi": "0.142.2",
+      "uvicorn": "0.54.0",
+      "httpx": "0.28.1",
+      "pytest": "9.1.1",
+      "mcp": "1.30.0"
+    }
+  },
+  "checks": {
+    "lightweight": {
+      "returncode": 0,
+      "summary": "171 passed in 3.82s"
+    },
+    "acceptance": {
+      "cases": 8,
+      "execution": "scripted model; real BM25/API",
+      "known_false_positive": "security_quote withheld"
+    },
+    "retrieval_pairs": {
+      "stable": 9,
+      "differences": 0,
+      "scope": "existing synthetic corpus; BM25 only; full non-timing search responses"
+    },
+    "replay": {
+      "status": "not_available",
+      "reason": "Private historical archives are optional and not shipped in a new checkout"
+    },
+    "mcp_stdio": {
+      "execution": "real MCP stdio client/server and loopback HTTP; no model calls",
+      "valid_token": {
+        "tools": [
+          "ask",
+          "lookup_person",
+          "search",
+          "whoami"
+        ],
+        "identity_bound": true,
+        "no_identity_parameter": true,
+        "unknown_identity_argument_does_not_change_result": true,
+        "search_excerpts": 2,
+        "disabled_ask_is_error": true,
+        "invalid_query_is_error": true,
+        "search_recovers_after_error": true
+      },
+      "invalid_token": {
+        "rejected": true,
+        "is_error": true
+      }
+    },
+    "loopback_http": {
+      "startup": true,
+      "static_ui": 200,
+      "unauthenticated": 401,
+      "conflicting_identity": 403,
+      "search": 200,
+      "generation_disabled": 409,
+      "invalid_query": 422
+    },
+    "javascript": {
+      "returncode": 0,
+      "output": ""
+    },
+    "whitespace": {
+      "returncode": 0
+    },
+    "historical_artifacts": {
+      "files": 0,
+      "scope": "Private historical reports intentionally absent from this publication checkout"
+    }
+  },
+  "validated_source_sha256": {
+    ".dockerignore": "dae0071bb41d1c52d87f9dc6945a331a7ff45d0c6771406e05f5a1c5224b1557",
+    "app\\__init__.py": "41362a5ea4931c546433d4c48290c5707bf02dbbea1c3aafa9f43d1225e47003",
+    "app\\acl.py": "9195da5280a6b8445fe72a15e5bf548bb7b9310f41fef44811286c6ffcc6816a",
+    "app\\agents.py": "a21081e149182634c8e7166896cbc34515374453dd4b94e8bfeb41f8f0380055",
+    "app\\api.py": "28626897010207c85fcbb82aa3fd1efbbfe20d4121ac7e4e6f3c8d51eb3d9f20",
+    "app\\auth.py": "38a8bcbd7291d9aef8eb65ad67f66e6ef85363a0e7ee6fb59430e95112fa7f8b",
+    "app\\cloud_audit.py": "d58aef41adce3f110e2c24b9387ffdf6a6bd7ebd14c49f8931b89a5d1a937e05",
+    "app\\ollama_client.py": "6060d17c93cccb6ede5bf6389e9bf7d872340d10b916e9ceec81b16b062677ab",
+    "app\\presentation.py": "37d4e6b18d658974bf07d21127257c0893507afc4c186727d387c35932cd3d53",
+    "app\\retrieval_core.py": "30042fdf234415e20da880707efdf8f52acc8f75b852b7424b139b64bb1aca4f",
+    "app\\schema.py": "564e6ae16e2e8c4d854a711deeb795768126af44ca0d68568e381bc0ee801daa",
+    "app\\tools.py": "5da36f139cb6d15f39958f5a73e83a43721fbcdb0bfbbd4c73b2efe19df1f8b4",
+    "docker-compose.yml": "4989bac8be81ecf2076e472f4387842e23188744262e68f7a0b71f9aa91f6474",
+    "docker-entrypoint.sh": "eb5f1ea4227e0713aeaf436596f59ef19720d2568b00cdaf2b715d3980c4cbb0",
+    "ingestion\\generate_data.py": "bc8ba8fdf8ac930cb0511e7b91709fe699beeb8143457e64e397322642ce2ade",
+    "ingestion\\ingest.py": "a48d57699ad6267a68ace64f71f6d0aee10096a22ddc1cac63154366a83a01ca",
+    "mcp_server.py": "e0b03fef32746081fc42495c0ecf7b144baad7eb6374852648e55b42b873ea05",
+    "README.md": "9a7da5c2447b47e7a6e363c780b3fb51b79ea732324dd551ce1520a9e25b7abd",
+    "redteam\\api_probe.py": "043482e98d65368ded5885b04e274c648e04d24be8439d8414f6362f9d80d571",
+    "redteam\\build_colab_bundle.py": "d028690e1bc5cfa2f4d3ebfa99436ed5c5fc38741c81feb78e1a5c78d722d443",
+    "redteam\\focused_probe.py": "701697845ca1b4554449ef0efddeb6825ee84f9dbc8c8bb925568a78e3300add",
+    "redteam\\mcp_smoke.py": "9abfdecd13f6474c3f6d197272fbe1722f2603e258dca3ae3a43347501e6bba7",
+    "redteam\\presentation_probe.py": "c37f4d2a155b3d54967c57472bdc4b068aa7e878a019472fefe14651509c5ea6",
+    "redteam\\release_check.py": "d674f34b0bd3b859b31916c8f6a636415396cff8bdaccf3c82aaced01ca1a97a",
+    "redteam\\resume_redteam.py": "8a3d5dc3d47029f2b395b49940a76482b08c967f73ff1995e88926cea66a029a",
+    "redteam\\retrieval_probe.py": "b3b6c62e690fcbaec59a0f8d5d34c939ec929291f20b945e16bc260ac5555ce3",
+    "redteam\\run_redteam.py": "17d2f239718195dd7f77a9a82e908736db4899bc7b39996acaf0afc18c8a37bd",
+    "requirements-search.txt": "d9a4302b266eb5e8e6d40d209be0764552b76af38559be02d1ea263a49d27299",
+    "requirements-test.txt": "ad94fdec4e0b176332d61afd03650fc0913d3ad66a125a08adb98d2b279e3011",
+    "run_demo.py": "868dbbf7fdfee52060cd0318db519d52fb91c934544dfc5884f592069a7dfdc5",
+    "setup.sh": "f8201f817c728332b1721ce90bc3c666c10aa195d1aaf12ddd9207d6ad664423",
+    "tests\\fixtures\\release_acceptance.json": "a46a81d42b2337ab2610c43dcf14a4b796aa0001249cb32772ba61d528c31f86",
+    "tests\\scripted_ui_server.py": "bf734709ad4aeddcc7b1c46d5bb40689ea9dc23ea8202209b2fd3c68672e8886",
+    "tests\\test_acl.py": "ab93f4a17d981894481b8a15d608e2650f142417e9e083a6a3a9b6525b2d67f2",
+    "tests\\test_agent_loop.py": "d5250707499886466be7fe29fe85005eb80133e168293047b134e4f032da629b",
+    "tests\\test_api_probe.py": "a440ef784ca08dc18c9e07c0d5e662368d83603683dbc2828686910a80d48c09",
+    "tests\\test_demo_launcher.py": "61b851508a58c7e7ca5a8076d661390022a021355c2df8fc09f6915f55ed91a4",
+    "tests\\test_evidence_boundary.py": "2d01ca7e017c5f1762d444b766cce571bd8014002f1cf9db45bd1d1e58c26d5e",
+    "tests\\test_identity_boundary.py": "fb23ac0c5ccb335bb6dac03bde288c10a235e0d8073530da79da2ae0ca4ce068",
+    "tests\\test_ingestion.py": "2715376ba6a30cbfbbbc81ebd1bb243b48a300d3787e0cebde4734a1e412778e",
+    "tests\\test_integration_retrieval.py": "1e63ca45dc8b88b1e270e9371d133dcd4e927b80e0cd774a39d6f4907e19a439",
+    "tests\\test_presentation.py": "4cdd2cec647cfe3fb5761f927c452edde2376dcd66d4cfccecc896e10c398e40",
+    "tests\\test_redteam.py": "a51c220835f66931906a39c147e28f911d1b02b815d793b2bab16d558eee5fc9",
+    "tests\\test_release.py": "1b75543673f8384bdffc054175cb96280d63f6917b4dca16587b67762edd7d3c",
+    "tests\\test_resume_redteam.py": "6bc398fb82f09e448ad509f760e97b2b8f61d46936cd70e6370d7d93ee5669f3",
+    "tests\\test_retrieval_primitives.py": "12adcc025b09117f2b0341d3eacc2ca456475a58a6d93a11cd5f76619e22ce3e",
+    "tests\\test_tools.py": "f06a9c0e7686a8db7c5f3a3345c0642a3d71f5b4ae6d5398c967e81d50ebe6eb",
+    "tests\\test_verification.py": "9c4f70f6eca4225fb2afb98a60d42ae38e1f5035a62148c221fdb4a4a3c1d48b",
+    "web\\app.js": "844c04c28c0da8b17619753027fe8bde3e298c050a53d55a32b9bc805b287dd6",
+    "web\\index.html": "4ee315e9d868798915698408d3b39701cd62eb31d202d3a0048e81fcb1525ed0",
+    "web\\style.css": "828307e0f46b62a675598d6032197e70ecb00bba3279550b12f686644d1d8770"
+  },
+  "historical_evidence": {
+    "recorded_answer_replay": {
+      "cases": 8,
+      "expected_outcomes": 8,
+      "withheld": 6,
+      "scope": "Earlier private Colab recordings replayed offline; two ordinary drafts unchanged, four attack drafts withheld, two security-analysis drafts also withheld. No new model inference.",
+      "implementation_sha256": {
+        "app/presentation.py": "37d4e6b18d658974bf07d21127257c0893507afc4c186727d387c35932cd3d53",
+        "app/agents.py": "a21081e149182634c8e7166896cbc34515374453dd4b94e8bfeb41f8f0380055",
+        "app/api.py": "28626897010207c85fcbb82aa3fd1efbbfe20d4121ac7e4e6f3c8d51eb3d9f20"
+      }
+    },
+    "fresh_search_install": {
+      "scope": "fresh search-only dependency installation; no model packages",
+      "install_exit": 0,
+      "smoke_exit": 0,
+      "smoke_output": "Fresh environment: keyword retrieval and API imports passed; no model/FAISS modules loaded\n"
+    },
+    "browser": {
+      "tested": [
+        "connect",
+        "PTO search",
+        "expand full excerpt",
+        "empty results",
+        "generation disabled",
+        "failed reconnect clears results",
+        "final reload and selected tab"
+      ],
+      "console_errors_observed": 0,
+      "scope": "local in-app browser; narrow search viewport and desktop scripted answer viewport; no model inference",
+      "scripted_answer_checks": [
+        "cited draft",
+        "keyboard citation navigation and highlight",
+        "withheld draft with retained untrusted evidence",
+        "synthesis unavailable",
+        "keyword search after failure",
+        "draft recovery"
+      ]
+    },
+    "retrieval_benchmark": {
+      "ndcg_at_10": 0.865,
+      "mrr": 0.792,
+      "mode": "hybrid+rerank",
+      "scope": "Historical source version; see evaluation_report.md"
+    }
+  },
+  "scope": {
+    "current_runtime": "native search-only",
+    "mcp_client": "MCP Python stdio client to real loopback HTTP API",
+    "desktop_host": "not measured",
+    "docker_localstack": "configuration included; runtime not measured",
+    "historical_automatic_redteam": "INCONCLUSIVE"
+  }
+}

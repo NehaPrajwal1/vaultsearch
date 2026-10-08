@@ -7,3 +7,19 @@ __pycache__
 indexes
 logs
 agent-transcripts
+
+# Keep operator secrets and private evaluation artifacts out of image build context.
+.env
+.env.*
+!.env.example
+.local-evaluations
+.codex
+.agents
+.aws
+*.log
+cloud/.terraform
+cloud/terraform.tfstate*
+cloud/volume
+
+# Runtime image does not need historical reports or raw evaluation records.
+/reports/

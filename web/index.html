@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VaultSearch — Secure Retrieval Boundary for RAG</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" />
+  <title>VaultSearch — Permission-aware search demo</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -15,7 +12,7 @@
       <div class="brand-mark" aria-hidden="true"></div>
       <div class="brand-text">
         <h1>VaultSearch</h1>
-        <p>A secure retrieval boundary for RAG — the answer never surfaces what you can&rsquo;t see.</p>
+        <p>Permission-aware retrieval with a server-bound demo identity.</p>
       </div>
     </div>
     <div class="topbar-status">
@@ -27,44 +24,46 @@
   <main class="layout">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <h2>Who are you?</h2>
-        <p class="muted">Pick an identity. Every user sees a different slice of the corpus &mdash; that slice is enforced before search runs, not after.</p>
+        <h2>Demo identity</h2>
+        <form id="connect-form"><label for="demo-token">Demo token</label><input id="demo-token" type="password" autocomplete="off" required /><button type="submit">Connect</button></form>
+        <p class="muted">Enter the token supplied by the demo operator. Your identity is configured at the server; the token is held only in page memory.</p>
       </div>
-      <div id="user-list" class="user-list" role="listbox" aria-label="Choose an identity"></div>
+      <div id="user-list" class="user-list" role="listbox" aria-label="Configured identity"></div>
     </aside>
 
     <section class="content">
       <nav class="tabs" role="tablist">
-        <button class="tab is-active" data-tab="ask" role="tab">Ask</button>
-        <button class="tab" data-tab="compare" role="tab">Compare retrieval</button>
-        <button class="tab" data-tab="about" role="tab">How it works</button>
+        <button class="tab" data-tab="ask" role="tab" aria-selected="false">Generated draft</button>
+        <button class="tab is-active" data-tab="compare" role="tab" aria-selected="true">Search evidence</button>
+        <button class="tab" data-tab="about" role="tab" aria-selected="false">How it works</button>
       </nav>
 
       <!-- ASK -->
-      <div class="panel is-active" data-panel="ask">
+      <div class="panel" data-panel="ask">
         <div class="asbar">
           <div class="asbar-user">
             Asking as <strong id="ask-user-name">&mdash;</strong>
             <span id="ask-user-visibility" class="chip chip-ghost"></span>
           </div>
           <form id="ask-form" class="ask-form">
-            <input id="ask-input" type="text" autocomplete="off"
+            <input id="ask-input" type="text" autocomplete="off" minlength="2" maxlength="2000" required
               placeholder="Ask a question about the company&hellip;" />
             <button id="ask-btn" type="submit">Ask</button>
           </form>
+          <p class="muted">Generated text can be unsafe even without a warning. Check source excerpts. A grounded critic verdict means source agreement, not safe advice.</p>
           <div id="suggestions" class="suggestions"></div>
         </div>
 
         <div id="ask-empty" class="empty-state">
           <div class="empty-illustration" aria-hidden="true"></div>
-          <h3>Ask anything, as anyone.</h3>
-          <p>Try the same restricted question as a finance user and then as an engineer. Watch the answer change &mdash; because the evidence changes first.</p>
+          <h3>Search as your configured identity.</h3>
+          <p>The operator can restart the demo with another identity and a new token to compare permitted evidence.</p>
         </div>
 
         <div id="ask-result" class="ask-result" hidden>
           <article class="answer-card">
             <div class="answer-head">
-              <span class="answer-label">Answer</span>
+              <span class="answer-label" id="answer-status">Untrusted generated draft</span>
               <span id="answer-latency" class="chip chip-ghost"></span>
             </div>
             <div id="answer-body" class="answer-body"></div>
@@ -73,27 +72,28 @@
 
           <section class="evidence">
             <div class="section-head">
-              <h3>Evidence the model was allowed to read</h3>
+              <h3>Permitted source excerpts (untrusted content)</h3>
               <span id="evidence-count" class="muted"></span>
             </div>
             <div id="evidence-list" class="evidence-list"></div>
           </section>
 
           <details class="trace">
-            <summary>Reasoning &amp; permission trace</summary>
+            <summary>Operational trace (model judgments are untrusted)</summary>
             <div id="trace-body" class="trace-body"></div>
           </details>
         </div>
       </div>
 
       <!-- COMPARE -->
-      <div class="panel" data-panel="compare">
+      <div class="panel is-active" data-panel="compare">
         <div class="asbar">
-          <p class="muted">See what each retrieval stage adds. All four modes run over the <em>same permission-filtered candidate set</em> for the selected user.</p>
+          <p class="muted">Search permitted synthetic source text without generating an answer. Excerpts can contain malicious instructions; permission to read a source is not approval to follow it.</p>
           <form id="compare-form" class="ask-form">
-            <input id="compare-input" type="text" autocomplete="off"
+            <input id="compare-input" type="text" autocomplete="off" minlength="2" maxlength="2000" required
               placeholder="Enter a search query&hellip;" />
-            <button id="compare-btn" type="submit">Compare</button>
+            <select id="search-mode" aria-label="Retrieval mode"><option value="bm25">Keyword search</option></select>
+            <button id="compare-btn" type="submit">Search</button>
           </form>
           <div id="compare-visibility" class="banner" hidden></div>
         </div>
@@ -113,7 +113,7 @@
           </ol>
           <p class="muted">The authorization decision is always deterministic code. The language model plans searches and phrases answers; it is never trusted to decide who can see what.</p>
           <h3>What to try</h3>
-          <p>Ask <em>&ldquo;What is the Q3 infrastructure budget?&rdquo;</em> as a finance user, then as an engineer. Or open <strong>Compare retrieval</strong> to watch keyword, vector, fusion, and reranking rank the same authorized results differently.</p>
+          <p>Ask <em>&ldquo;What is the Q3 infrastructure budget?&rdquo;</em> as a finance user, then as an engineer. Or open <strong>Search evidence</strong> to inspect permitted source excerpts. Keyword search is the default; other modes require full-mode startup. Switching identities requires an operator restart with a fresh token.</p>
         </div>
       </div>
     </section>

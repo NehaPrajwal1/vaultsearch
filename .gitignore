@@ -12,3 +12,15 @@ cloud/.terraform/
 cloud/.terraform.lock.hcl
 cloud/terraform.tfstate*
 cloud/volume/
+
+# Local evaluation archives stay private; curated release summaries live in reports/.
+.local-evaluations/
+
+# Private operator configuration and raw evaluation output
+.env.*
+!.env.example
+*.log
+reports/*
+!reports/evaluation_report.md
+!reports/release_review.md
+!reports/release_validation.json

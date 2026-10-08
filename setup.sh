@@ -13,14 +13,13 @@ if [ -x .venv/bin/python ]; then
   exit 0
 fi
 
-# --system-site-packages reuses an existing global PyTorch/FAISS install if
-# present, avoiding a multi-gigabyte reinstall. Harmless if nothing is installed.
-env -u APPIMAGE -u APPDIR python3 -m venv --system-site-packages .venv
+# Isolate the lightweight default from global model packages.
+env -u APPIMAGE -u APPDIR python3 -m venv .venv
 
 # shellcheck disable=SC1091
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-search.txt
 
 echo
 echo "Done. Activate the environment with:"
