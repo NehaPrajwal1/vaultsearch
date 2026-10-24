@@ -1,0 +1,67 @@
+{
+  "review_date_local": "2026-10-24",
+  "measurement_date_local": "2026-10-22",
+  "timezone": "Asia/Calcutta",
+  "status": "LOCAL_SEARCH_PACKAGE_VALIDATED",
+  "scope": "Extracted source; existing Windows Python dependency environment; no live model",
+  "source_package_sha256": "8b54911e79d28fa09c6ab05d957d9e314782888bdd885b62e8183012ad8ba821",
+  "checks": {
+    "lightweight": {
+      "returncode": 0,
+      "stdout": "........................................................................ [ 40%]\n........................................................................ [ 81%]\n................................                                         [100%]\n176 passed in 8.88s\n",
+      "stderr": ""
+    },
+    "retrieval_pairs": {
+      "stable": 9,
+      "differences": 0,
+      "scope": "existing synthetic corpus; BM25 only; full non-timing search responses"
+    },
+    "acceptance": {
+      "cases": 8,
+      "execution": "scripted model; real BM25/API",
+      "known_false_positive": "security_quote withheld"
+    },
+    "loopback_http": {
+      "startup": true,
+      "static_ui": 200,
+      "unauthenticated": 401,
+      "conflicting_identity": 403,
+      "search": 200,
+      "generation_disabled": 409,
+      "invalid_query": 422
+    },
+    "mcp_stdio": {
+      "execution": "real MCP stdio client/server and loopback HTTP; no model calls",
+      "valid_token": {
+        "tools": [
+          "ask",
+          "lookup_person",
+          "search",
+          "whoami"
+        ],
+        "identity_bound": true,
+        "no_identity_parameter": true,
+        "unknown_identity_argument_does_not_change_result": true,
+        "search_excerpts": 2,
+        "disabled_ask_is_error": true,
+        "invalid_query_is_error": true,
+        "search_recovers_after_error": true
+      },
+      "invalid_token": {
+        "rejected": true,
+        "is_error": true
+      }
+    },
+    "replay": {
+      "status": "not_available",
+      "reason": "Private historical archives are optional and not shipped in a new checkout"
+    }
+  },
+  "unverified": [
+    "Current-source embeddings/reranker: bounded check timed out",
+    "Live-model usefulness and prompt-injection resistance",
+    "Docker/Compose and LocalStack runtime",
+    "Named desktop MCP hosts",
+    "Remote CI execution"
+  ]
+}

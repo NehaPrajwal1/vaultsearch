@@ -3,7 +3,7 @@
 After setup, start with `python run_demo.py --user ines` using the project virtual environment; copy the printed token into Connect. No model service is needed. Start as `user:ines` and connect using the fresh operator token.
 
 1. Open **Search evidence** (the default tab). Search `paid time off`. Open **Read source excerpt (untrusted)**. Check the policy text, document ID and chunk ID. These are retrieved sources, not a generated answer.
-2. Search `Q3 infrastructure budget`. Inspect every returned excerpt. The engineering persona must not receive finance-only budget evidence. A result or its absence is not a statement about whether restricted documents exist.
+2. Search `Q3 infrastructure budget`. Inspect every returned excerpt. Ines has general staff access and must not receive finance-only budget evidence. A result or its absence is not a statement about whether restricted documents exist.
 3. Stop the server. Run `python run_demo.py --user dmitri` with the project virtual environment, then reconnect using its newly printed token. Search the same budget question. The finance persona can inspect its permitted budget evidence. Old-token and conflicting-identity requests are rejected.
 4. Search `zygomorphic quasar`. Explain the empty result as “no matching permitted keyword evidence,” without making a hidden-document existence claim. Try ordinary keywords from a known document to recover.
 5. Open **Generated draft**. In search-only mode it is explicitly disabled; search continues working. Discuss the optional model mode using the containment replay summary below rather than loading a model on this laptop.

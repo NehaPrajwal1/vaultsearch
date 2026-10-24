@@ -1,119 +1,115 @@
 # VaultSearch
+### Permission-aware search with inspectable evidence
 
-**Permission-aware search, hybrid retrieval, and an instrumented RAG red-team pipeline.**
+Search a synthetic company knowledge base as a configured persona, inspect the original excerpts, and compare what different identities may retrieve.
 
-VaultSearch searches a synthetic company's documents using the requesting identity's permissions. It combines a FastAPI backend, a local browser interface, optional Ollama-generated answers, and a four-tool MCP server. The default demo runs keyword search without downloading or loading an AI model.
+**Python · FastAPI · BM25 · Vanilla JavaScript · MCP**
 
-## Results at a glance
+Optional experiments: FAISS, sentence-transformers, Ollama and LocalStack.
 
-| Achievement | Measured scope |
-|---|---|
-| **513 document chunks · 12 personas · 6 ACL groups** | Synthetic Drive-like documents, Slack-like threads, and support tickets |
-| **171 passing lightweight tests** | ACLs, identity binding, retrieval primitives, citations, answer presentation, API behavior, and evaluation harness |
-| **9/9 stable permission-isolation comparisons** | Three identities × three queries; identical full non-timing BM25 responses with restricted documents present versus absent |
-| **8/8 recorded-answer presentation replays** | Two preserved four-case Colab rounds replayed through the presentation policy |
-| **8 scripted acceptance cases** | Real API/BM25 with controlled answer fixtures |
-| **Real MCP stdio-to-HTTP integration** | Tool discovery, bound identity, source excerpts, rejected credentials, disabled generation, invalid input, and recovery |
-| **NDCG@10 0.865 · MRR 0.792** | Historical hybrid + cross-encoder retrieval benchmark; separate from current release checks |
-| **Clean search-only installation** | Keyword retrieval and API imports without loading Torch, sentence-transformers, or FAISS |
+[Run the demo](#run-locally) · [Case study](docs/case-study.md) · [Architecture](docs/architecture.md) · [Demo walkthrough](docs/demo.md) · [Measured evidence](reports/portfolio_evidence.json)
 
-See the [validation record](reports/release_review.md) for test provenance and the [historical retrieval table](reports/evaluation_report.md) for benchmark modes and timings. Presentation replay measures application behavior over recorded answers; it is separate from live-model evaluation.
+## What this project demonstrates
 
-## What is implemented
+- **Permissions before ranking.** The API derives identity from a server-configured bearer token and restricts search to permitted chunks. A caller cannot select a different persona.
+- **Evidence you can inspect.** Results include complete excerpts, source identifiers and document/chunk IDs.
+- **A reproducible identity comparison.** General staff and finance personas receive different permitted evidence for the same budget query.
+- **Useful behavior without a model.** Keyword search works locally without a GPU, Ollama, embeddings or a reranker.
+- **Explicit failure states.** Invalid credentials, unavailable generation, absent evidence and withheld drafts are distinct.
+- **Tool integration.** MCP tools forward requests to the same authenticated API.
 
-- **ACL-filtered retrieval:** expand user/group principals, select permitted documents before scoring, build BM25 statistics over that permitted corpus, and independently verify returned evidence.
-- **Hybrid ranking:** BM25 + normalized FAISS vectors + reciprocal-rank fusion + cross-encoder reranking, with stable result ordering.
-- **Bounded answer orchestration:** Ollama `gemma3:4b`, three internal tools, and up to two evidence-refinement rounds. Tool arguments are validated and identity is bound outside model-generated calls.
-- **Evidence and citations:** full source excerpts, stable document/chunk IDs, citation allowlisting, and keyboard-accessible citation navigation.
-- **Answer presentation:** flagged drafts receive a fixed application-written message while permitted evidence stays inspectable. Failure states preserve independent keyword search.
-- **Red-team instrumentation:** prompt-injection fixtures, restricted-fact checks, raw/final citation analysis, source-exposure tracking, present/repeat/absent comparisons, and source-hashed evaluation artifacts.
-- **MCP integration:** `search`, `ask`, `lookup_person`, and `whoami` forward through the same server-bound API identity.
-- **Deployment configuration:** Docker Compose profiles and optional Terraform/LocalStack infrastructure for S3, SQS, and DynamoDB.
+The included dataset has **225 synthetic documents, 513 chunks and 12 personas**. It includes fabricated restricted facts and hostile instructions for evaluation; no real workplace data is required.
+
+## Run locally
+
+Use Python 3.12 for the documented validation environment. Extract the curated source ZIP or open the project checkout, then run these commands from the project root. Reuse an existing virtual environment if one is already configured.
+
+**Windows / PowerShell**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-search.txt
+.\.venv\Scripts\python.exe run_demo.py --user ines
+```
+
+**Linux / macOS**
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-search.txt
+.venv/bin/python run_demo.py --user ines
+```
+
+Open **http://127.0.0.1:8000**, paste the token printed by the launcher into **Demo token**, and select **Connect**. Search **paid time off**, then open a source excerpt.
+
+Stop the server with Ctrl+C. Restart with `--user dmitri` and reconnect using the fresh token to demonstrate finance access. Use `--port 8001` if the default port is occupied. The browser keeps the token in page memory.
+
+Python 3.11+ is the declared baseline; the recorded native validation used Python 3.12. Dependency installation requires network access. Linux/macOS and CI execution have not yet been confirmed for this snapshot.
+
+## See the permission boundary
+
+| Step | Persona | Query | What to inspect |
+|---|---|---|---|
+| 1 | Ines, general staff | paid time off | Permitted policy text and source IDs |
+| 2 | Ines, general staff | Q3 infrastructure budget | No finance-only budget evidence |
+| 3 | Dmitri, finance | Q3 infrastructure budget | Permitted budget evidence |
+| 4 | Either | zygomorphic quasar | Clear empty-result state |
+
+A missing result makes no claim about whether restricted documents exist. The operator changes identities by restarting the server; the UI cannot impersonate another user.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    S[Synthetic sources + ACLs] --> I[Ingestion and chunking]
-    I --> C[513 chunks]
-    U[Browser or MCP client] --> A[FastAPI + bound identity]
-    A --> P[Permitted-corpus selection]
+    S["Synthetic sources"] --> I["Ingestion and chunk ACLs"]
+    I --> C["Corpus"]
+    U["Browser or MCP client"] --> A["FastAPI: validate token and bind identity"]
+    A --> P["Select permitted chunks"]
     C --> P
-    P --> B[BM25 search]
-    P --> H[Optional FAISS + RRF + reranker]
-    B --> E[Verified evidence]
-    H --> E
-    E --> UI[Source excerpts and citations]
-    E --> O[Optional Ollama answer pipeline]
-    O --> F[Citation and presentation checks]
-    F --> UI
+    P --> R["BM25 over permitted corpus"]
+    R --> E["Ranked excerpts and stable IDs"]
+    E --> U
 ```
 
-## Run the demo
+The optional generated-answer path adds retrieval, source selection, model calls, citation filtering and draft presentation. It remains experimental. [Read the design decisions](docs/architecture.md).
 
-Python 3.11+ is required. For a **new checkout**, open PowerShell and run:
+## Evidence and reproducibility
 
-```powershell
-git clone https://github.com/NehaPrajwal1/vaultsearch.git
-cd vaultsearch
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-search.txt
-.\.venv\Scripts\python.exe run_demo.py --user dmitri
-```
+The October 22 extracted-package validation recorded:
 
-Open **http://127.0.0.1:8000**, paste the printed demo token into **Connect**, and search `paid time off` or `Q3 infrastructure budget`. Expand a result to inspect its source text and IDs.
+| Check | Result | Scope |
+|---|---|---|
+| Lightweight regression suite | 176 passed | Excludes model-loading integration tests |
+| Permission corpus comparisons | 9 stable; 0 differences | BM25, full non-timing search responses |
+| Scripted acceptance cases | 8 completed | Actual API/retrieval; scripted model outputs |
+| HTTP and MCP integration | Passed | Local API plus real MCP stdio client/server |
 
-For an existing environment, run only the launcher. It validates the identity, corpus, and port, creates a fresh token, and starts search-only mode. It never replaces an occupied server. Stop it with **Ctrl+C**. To switch persona, restart with `--user ines` and reconnect using the new token.
-
-```powershell
-.\.venv\Scripts\python.exe run_demo.py --list-users
-.\.venv\Scripts\python.exe run_demo.py --user ines --check
-```
-
-Linux/macOS use `.venv/bin/python`. The synthetic corpus is included; ingestion scripts can regenerate it if deliberately needed. The browser uses local assets and system fonts. Follow the [five-minute walkthrough](docs/demo.md).
-
-## API and MCP
-
-Data routes require `Authorization: Bearer <token>`. The operator configures one identity per API process; callers cannot choose another identity.
-
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/search` | Permitted excerpts, IDs, scores, and ranking; BM25 by default |
-| `POST /api/ask` | Optional generated draft, evidence, citations, and status; disabled in search-only mode |
-| `GET /api/users` | Bound identity and its permitted chunk count |
-| `GET /api/directory` | Org-public names and group memberships |
-| `GET /health` | API availability, search-only setting, and available retrieval modes |
-
-Configure an MCP host to launch the project Python interpreter with the absolute path to `mcp_server.py`. Supply `VAULTSEARCH_URL=http://127.0.0.1:8000` and the matching `VAULTSEARCH_TOKEN` through the host's private environment configuration. The adapter uses stdio; the API uses HTTP. No identity argument is exposed by its four tools. The recorded integration uses the MCP Python client.
-
-## Reproduce validation
+These are local engineering checks, not production security or live-model quality claims. [Evidence summary](reports/portfolio_evidence.json) · [Detailed release review](reports/release_review.md)
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-test.txt
 .\.venv\Scripts\python.exe redteam/release_check.py
 ```
 
-Node.js is used for the JavaScript syntax check. The bounded runner performs lightweight tests, scripted acceptance, BM25 comparisons, temporary loopback HTTP checks, and real MCP integration without invoking Ollama. Each run creates a unique ignored `.local-evaluations/release-check-*` directory. Private historical replays are optional and are reported as unavailable in a fresh clone.
+Node.js is required for the JavaScript syntax check. Each run creates a new local evidence directory. A [CI workflow](.github/workflows/ci.yml) is prepared for Windows and Linux; it has not yet run on GitHub. [Validation guide](docs/validation.md)
 
-[Validation details](reports/release_review.md) · [Red-team methodology](redteam/README.md) · [Evaluation runbook](RUN_SECURITY.md) · [System design](DESIGN.md)
+## Scope and remaining work
 
-## Optional answer and infrastructure modes
+**Supported portfolio demo:** local keyword search, server-bound demo identities, source inspection, and MCP forwarding.
 
-Full retrieval/answer mode uses `requirements.txt`, indexes built by `indexing/build_indexes.py`, and an explicitly configured Ollama service. Set `VAULTSEARCH_SEARCH_ONLY=false` to enable it. `AGENT_MAX_ROUNDS` accepts 0–2; `USE_RERANKER` and `USE_CRITIC` control additional model work. Use suitable hardware for these modes; the native search-only path is the validated low-memory demo.
+**Experimental:** generated answers, semantic retrieval/reranking, Docker and LocalStack. The recent embedding check exceeded its deadline; Docker runtime and named desktop MCP hosts remain unverified. Historical live-model findings are inconclusive and include unsafe answers. The output detector can miss attacks and withhold legitimate security quotations.
 
-Compose keeps Ollama under the `generation` profile and LocalStack under `cloud`; both are opt-in. Configuration is included separately from the measured native runtime results.
+Production identity providers, confidential workplace deployment, scalability and comprehensive prompt-injection resistance are outside the validated scope. [Full technical reference](docs/reference.md) · [Bounded evaluation guide](RUN_SECURITY.md)
 
-The corpus and evaluation fixtures are synthetic. Generated text and retrieved instructions are treated as untrusted data; citation membership establishes a permitted source label, not factual or safety approval. Evaluation scope and historical outcomes are retained in the linked methodology and validation records.
+## Explore the code
 
-## Project map
-
-| Path | Responsibility |
+| Area | Files |
 |---|---|
-| `app/` | API, identity, ACLs, retrieval, orchestration, citations, and presentation |
-| `web/` | Local browser UI |
-| `ingestion/`, `data/` | Synthetic source generation and ACL-preserving chunking |
-| `indexing/`, `eval/` | Optional vector indexes and retrieval benchmarks |
-| `mcp_server.py` | Four-tool stdio adapter |
-| `redteam/`, `tests/` | Evaluation harness, deterministic tests, and synthetic fixtures |
-| `reports/` | Curated validation evidence |
-| `cloud/` | Optional Terraform and ingestion/audit infrastructure |
+| Identity and permissions | `app/auth.py`, `app/acl.py` |
+| Search and evidence | `app/retrieval_core.py`, `app/tools.py` |
+| API and browser | `app/api.py`, `web/` |
+| Optional generation | `app/agents.py`, `app/presentation.py` |
+| MCP | `mcp_server.py` |
+| Validation and packaging | `tests/`, `redteam/release_check.py`, `redteam/build_release.py` |
+
+The portfolio demo runs locally. See the validation guide to reproduce its checks.
