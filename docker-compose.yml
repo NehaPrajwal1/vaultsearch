@@ -29,7 +29,9 @@ services:
 
   # ── VaultSearch API + web UI ────────────────────────────────────────────────
   vaultsearch:
-    build: .
+    build:
+      context: .
+      target: ${VAULTSEARCH_IMAGE_TARGET:-search}
     ports:
       - "127.0.0.1:8000:8000"
     environment:

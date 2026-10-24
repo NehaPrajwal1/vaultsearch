@@ -25,11 +25,15 @@ def main():
     historical += [p for folder in ("colab-four-case-review","colab-second-round-review") for p in (ROOT/".local-evaluations"/folder).rglob("*") if p.is_file()]
     before={str(p.relative_to(ROOT)):digest(p) for p in historical}
     source=[p for folder in ("app","web","tests","redteam","ingestion") for p in (ROOT/folder).rglob("*") if p.is_file() and p.suffix in {".py",".js",".html",".css",".json"}]
-    source += [ROOT/name for name in ("README.md","run_demo.py",".dockerignore","requirements-search.txt","requirements-test.txt","mcp_server.py","docker-compose.yml","docker-entrypoint.sh","setup.sh")]
+    source += [ROOT/name for name in ("README.md","run_demo.py","Dockerfile",".gitattributes",".dockerignore","requirements-search.txt","requirements-test.txt","mcp_server.py","docker-compose.yml","docker-entrypoint.sh","setup.sh")]
     report["source"]={str(p.relative_to(ROOT)):digest(p) for p in sorted(source)}
     report["runtime"]={"python":sys.version,"packages":{name:importlib.metadata.version(name) for name in ("numpy","rank-bm25","faiss-cpu","fastapi","uvicorn","httpx","pytest","mcp")}}
-    report["head"]=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip()
-    report["git_status"]=subprocess.check_output(["git","status","--short"],cwd=ROOT,text=True)
+    from redteam.api_probe import source_provenance
+    report["source_provenance"]=source_provenance(ROOT)
+    report["head"]=report["source_provenance"]["commit"]
+    packaged=(ROOT/"BUNDLE_MANIFEST.json").is_file()
+    report["git_status"]=("packaged snapshot; file hashes verified" if packaged else
+                          subprocess.check_output(["git","status","--short"],cwd=ROOT,text=True))
     save()
     try:
         result=subprocess.run([sys.executable,"-m","pytest","-q","-p","no:cacheprovider","--ignore=tests/test_integration_retrieval.py"],cwd=ROOT,capture_output=True,text=True,timeout=90)
@@ -119,9 +123,12 @@ def main():
         js=subprocess.run(["node","--check",str(ROOT/"web/app.js")],capture_output=True,text=True,timeout=15)
         report["checks"]["javascript"]={"returncode":js.returncode,"output":js.stdout+js.stderr}
         assert js.returncode==0
-        whitespace=subprocess.run(["git","diff","--check"],cwd=ROOT,capture_output=True,text=True,timeout=20)
-        report["checks"]["whitespace"]={"returncode":whitespace.returncode,"output":whitespace.stdout+whitespace.stderr}
-        assert whitespace.returncode==0
+        if packaged:
+            report["checks"]["whitespace"]={"status":"not_applicable", "reason":"No Git diff in a verified source snapshot"}
+        else:
+            whitespace=subprocess.run(["git","diff","--check"],cwd=ROOT,capture_output=True,text=True,timeout=20)
+            report["checks"]["whitespace"]={"returncode":whitespace.returncode,"output":whitespace.stdout+whitespace.stderr}
+            assert whitespace.returncode==0
         assert before=={str(p.relative_to(ROOT)):digest(p) for p in historical}
         report["checks"]["historical_artifacts"]={"unchanged":True,"files":len(before),"sha256":before}
         report["status"]="LOCAL_CHECKS_PASSED"

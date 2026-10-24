@@ -1,6 +1,17 @@
 #!/bin/sh
 set -eu
 
+# Match API mode parsing before attempting index construction.
+mode=$(printf '%s' "${VAULTSEARCH_SEARCH_ONLY:-true}" | tr '[:upper:]' '[:lower:]')
+case "$mode" in
+  true|false) ;;
+  *) echo "VAULTSEARCH_SEARCH_ONLY must be true or false" >&2; exit 2 ;;
+esac
+if [ "$mode" = "false" ] && [ "${VAULTSEARCH_IMAGE_MODE:-full}" = "search" ]; then
+  echo "Generation requires rebuilding with VAULTSEARCH_IMAGE_TARGET=full." >&2
+  exit 2
+fi
+
 # Generate synthetic data on first run.
 if [ ! -f data/chunks.json ]; then
   echo "Building synthetic corpus..."
@@ -9,7 +20,7 @@ if [ ! -f data/chunks.json ]; then
 fi
 
 # Build indexes on first run (or if they are missing).
-if [ "${VAULTSEARCH_SEARCH_ONLY:-true}" = "false" ] && { [ ! -f indexes/vectors.faiss ] || [ ! -f indexes/bm25.pkl ]; }; then
+if [ "$mode" = "false" ] && { [ ! -f indexes/vectors.faiss ] || [ ! -f indexes/bm25.pkl ]; }; then
   echo "Building search indexes..."
   python indexing/build_indexes.py
 fi
