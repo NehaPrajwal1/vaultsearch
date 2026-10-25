@@ -359,8 +359,12 @@ def main():
         metadata["working_tree_dirty"] = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
         metadata["source_files"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                                     for folder in ("app", "redteam", "indexing") for p in (ROOT / folder).glob("*.py")}
-        metadata["packages"] = {name: importlib.metadata.version(name) for name in
-                                ("faiss-cpu", "rank-bm25", "sentence-transformers", "httpx", "fastapi")}
+        metadata["packages"] = {}
+        for name in ("faiss-cpu", "rank-bm25", "sentence-transformers", "httpx", "fastapi"):
+            try:
+                metadata["packages"][name] = importlib.metadata.version(name)
+            except importlib.metadata.PackageNotFoundError:
+                metadata["packages"][name] = None
         version = httpx.get(f"{llm.base_url}/api/version", timeout=5)
         version.raise_for_status()
         metadata["ollama_version"] = version.json()
