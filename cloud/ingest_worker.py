@@ -15,13 +15,19 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import tempfile
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote_plus
 
 import boto3
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from app.schema import Document
+
 SOURCES_DIR = ROOT / "data" / "sources"
 INDEX_DIR = ROOT / "indexes"
 
@@ -37,27 +43,50 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 def object_keys(message_body: str) -> list[str]:
     """Extract S3 object keys from an S3→SQS event notification body."""
-    try:
-        body = json.loads(message_body)
-        return [
-            record["s3"]["object"]["key"]
-            for record in body.get("Records", [])
-            if record.get("eventName", "").startswith("ObjectCreated")
-        ]
-    except (json.JSONDecodeError, KeyError, TypeError):
+    body = json.loads(message_body)
+    if not isinstance(body, dict):
+        raise ValueError("Expected an S3 event object")
+    if body.get("Event") == "s3:TestEvent":
         return []
+    records = body.get("Records")
+    if not isinstance(records, list) or not records:
+        raise ValueError("Missing S3 event records")
+    keys = []
+    for record in records:
+        if not isinstance(record, dict):
+            raise ValueError("Invalid S3 event record")
+        if not record.get("eventName", "").startswith("ObjectCreated"):
+            continue
+        event = record["s3"]
+        if event["bucket"]["name"] != SOURCES_BUCKET:
+            raise ValueError("Unexpected source bucket")
+        key = unquote_plus(event["object"]["key"])
+        if not re.fullmatch(r"sources/[A-Za-z0-9][A-Za-z0-9_.-]*\.json", key):
+            raise ValueError("Expected a JSON file directly inside sources/")
+        keys.append(key)
+    return keys
 
 
 def rebuild(s3, keys: list[str]) -> None:
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
-    for key in keys:
-        target = SOURCES_DIR / Path(key).name
-        s3.download_file(SOURCES_BUCKET, key, str(target))
-        print(f"downloaded s3://{SOURCES_BUCKET}/{key}")
+    # Stage the whole batch before replacing any source file.
+    with tempfile.TemporaryDirectory(dir=SOURCES_DIR) as staging:
+        for key in keys:
+            target = Path(staging) / Path(key).name
+            s3.download_file(SOURCES_BUCKET, key, str(target))
+            payload = json.loads(target.read_text(encoding="utf-8"))
+            if not isinstance(payload, list):
+                raise ValueError("Source JSON must contain a list of documents")
+            for raw in payload:
+                Document.from_dict(raw)
+        for key in keys:
+            name = Path(key).name
+            (Path(staging) / name).replace(SOURCES_DIR / name)
+            print(f"downloaded s3://{SOURCES_BUCKET}/{key}")
 
     for script in ("ingestion/ingest.py", "indexing/build_indexes.py"):
         print(f"running {script} ...")
-        subprocess.run([sys.executable, str(ROOT / script)], check=True, cwd=ROOT)
+        subprocess.run([sys.executable, str(ROOT / script)], check=True, cwd=ROOT, timeout=900)
 
     for name in ("bm25.pkl", "vectors.faiss", "chunks_meta.json"):
         s3.upload_file(str(INDEX_DIR / name), ARTIFACTS_BUCKET, f"indexes/{name}")
@@ -73,20 +102,28 @@ def main() -> None:
 
     while True:
         response = sqs.receive_message(
-            QueueUrl=queue_url, MaxNumberOfMessages=10, WaitTimeSeconds=10
+            QueueUrl=queue_url, MaxNumberOfMessages=10, WaitTimeSeconds=10,
+            VisibilityTimeout=3600
         )
         messages = response.get("Messages", [])
         keys: list[str] = []
+        accepted = []
         for message in messages:
-            keys.extend(object_keys(message["Body"]))
+            try:
+                keys.extend(object_keys(message["Body"]))
+                accepted.append(message)
+            except (ValueError, KeyError, TypeError):
+                print("Invalid event retained for retry/dead-letter handling", file=sys.stderr)
+        if keys:
+            # Any exception leaves messages available for redelivery.
+            rebuild(s3, sorted(set(keys)))
+            print("rebuild complete")
+        elif once and not messages:
+            print("queue empty")
+        for message in accepted:
             sqs.delete_message(
                 QueueUrl=queue_url, ReceiptHandle=message["ReceiptHandle"]
             )
-        if keys:
-            rebuild(s3, sorted(set(keys)))
-            print("rebuild complete")
-        elif once:
-            print("queue empty")
         if once:
             break
 

@@ -7,6 +7,8 @@ document bodies, and writes data/chunks.json used by the indexers.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import sys
 from pathlib import Path
 
@@ -54,9 +56,17 @@ def chunk_document(doc: Document) -> list[Chunk]:
 
 def load_documents() -> list[Document]:
     docs: list[Document] = []
+    seen = set()
     for path in sorted((DATA_DIR / "sources").glob("*.json")):
-        for raw in json.loads(path.read_text()):
-            docs.append(Document.from_dict(raw))
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            raise ValueError(f"{path.name}: expected a list of documents")
+        for raw in payload:
+            doc = Document.from_dict(raw)
+            if doc.doc_id in seen:
+                raise ValueError(f"Duplicate document ID: {doc.doc_id}")
+            seen.add(doc.doc_id)
+            docs.append(doc)
     return docs
 
 
@@ -68,7 +78,18 @@ def main() -> None:
     for doc in docs:
         all_chunks.extend(chunk_document(doc))
     out = DATA_DIR / "chunks.json"
-    out.write_text(json.dumps([c.to_dict() for c in all_chunks], indent=2))
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=DATA_DIR,
+                                         suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            json.dump([c.to_dict() for c in all_chunks], handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(out)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     by_source: dict[str, int] = {}
     for d in docs:
         by_source[d.source] = by_source.get(d.source, 0) + 1

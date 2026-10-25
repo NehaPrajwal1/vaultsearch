@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,7 +32,9 @@ def _audit_logger() -> logging.Logger:
     logs.mkdir(exist_ok=True)
     logger = logging.getLogger("vaultsearch.audit")
     if not logger.handlers:
-        handler = logging.FileHandler(logs / "audit.jsonl")
+        handler = RotatingFileHandler(
+            logs / "audit.jsonl", maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+        )
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
@@ -89,6 +92,17 @@ class SearchRequest(BaseModel):
     query: str = Field(min_length=2, max_length=2000)
     top_n: int = Field(default=6, ge=1, le=20)
     mode: str = Field(default="bm25", pattern=r"^(bm25|vector|hybrid|hybrid\+rerank|all)$")
+
+
+@app.middleware("http")
+async def response_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/health")

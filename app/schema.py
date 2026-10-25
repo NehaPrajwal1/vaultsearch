@@ -21,6 +21,19 @@ class Document:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Document":
+        if not isinstance(d, dict):
+            raise ValueError("Document must be an object")
+        for name in ("doc_id", "source", "title", "body", "created_at"):
+            if not isinstance(d.get(name), str) or not d[name].strip():
+                raise ValueError(f"Document {name} must be a nonempty string")
+        principals = d.get("allowed_principals")
+        if not isinstance(principals, list) or any(
+            not isinstance(p, str) or not p.startswith(("user:", "group:"))
+            or not p.partition(":")[2].strip() for p in principals
+        ):
+            raise ValueError("Document ACL must be a list of user/group principals")
+        if "metadata" in d and not isinstance(d["metadata"], dict):
+            raise ValueError("Document metadata must be an object")
         return cls(**d)
 
 
