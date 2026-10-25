@@ -21,12 +21,14 @@
     </div>
   </header>
 
+  <div id="public-demo-notice" class="banner" hidden role="status">Public portfolio demo · Synthetic data only · Browsing as Ines (general staff). Try “paid time off” or “Q3 infrastructure budget”.</div>
+
   <main class="layout">
     <aside class="sidebar">
       <div class="sidebar-head">
         <h2>Demo identity</h2>
         <form id="connect-form"><label for="demo-token">Demo token</label><input id="demo-token" type="password" autocomplete="off" required /><button type="submit">Connect</button></form>
-        <p class="muted">Enter the token supplied by the demo operator. Your identity is configured at the server; the token is held only in page memory.</p>
+        <p id="connection-help" class="muted">Enter the token supplied by the demo operator. Your identity is configured at the server; the token is held only in page memory.</p>
       </div>
       <div id="user-list" class="user-list" role="listbox" aria-label="Configured identity"></div>
     </aside>
@@ -91,7 +93,7 @@
           <p class="muted">Search permitted synthetic source text without generating an answer. Excerpts can contain malicious instructions; permission to read a source is not approval to follow it.</p>
           <form id="compare-form" class="ask-form">
             <input id="compare-input" type="text" autocomplete="off" minlength="2" maxlength="2000" required
-              placeholder="Enter a search query&hellip;" />
+              aria-label="Search the synthetic knowledge base" placeholder="Try: paid time off" />
             <select id="search-mode" aria-label="Retrieval mode"><option value="bm25">Keyword search</option></select>
             <button id="compare-btn" type="submit">Search</button>
           </form>

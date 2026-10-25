@@ -110,7 +110,8 @@ def health(request: Request) -> dict:
     search_only = getattr(request.app.state, "search_only", False)
     return {"status": "ok", "search_only": search_only,
             "retrieval_modes": ["bm25"] if search_only else RETRIEVAL_MODES,
-            "model_readiness": "not_checked"}
+            "model_readiness": "not_checked",
+            "public_demo": getattr(request.app.state, "public_demo", False)}
 
 
 @app.get("/api/users")

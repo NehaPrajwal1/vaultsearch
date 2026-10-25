@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: vaultsearch-portfolio
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: VAULTSEARCH_PUBLIC_DEMO
+        value: "true"
+      - key: VAULTSEARCH_SEARCH_ONLY
+        value: "true"
+      - key: VAULTSEARCH_USER
+        value: user:ines
+      - key: VAULTSEARCH_TOKEN
+        generateValue: true
+      - key: USE_RERANKER
+        value: "false"
+      - key: HF_HUB_OFFLINE
+        value: "1"
+      - key: TRANSFORMERS_OFFLINE
+        value: "1"

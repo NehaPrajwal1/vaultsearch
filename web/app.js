@@ -4,6 +4,7 @@ const state = {
   token: "",
   session: 0,
   searchOnly: true,
+  publicDemo: false,
   users: [],
   totalChunks: 0,
   currentUser: null,
@@ -63,6 +64,7 @@ async function checkHealth() {
     if (!res.ok) throw new Error();
     const health = await res.json();
     state.searchOnly = health.search_only !== false;
+    state.publicDemo = health.public_demo === true;
     el("ask-btn").disabled = state.searchOnly;
     el("suggestions").hidden = state.searchOnly;
     el("ask-input").disabled = state.searchOnly;
@@ -349,6 +351,17 @@ async function init() {
   el("ask-form").addEventListener("submit", onAsk);
   el("compare-form").addEventListener("submit", onCompare);
   await checkHealth();
+  if (state.publicDemo) {
+    el("connect-form").hidden = true;
+    el("public-demo-notice").hidden = false;
+    el("connection-help").textContent = "Everyone explores the same synthetic dataset as Ines. Permissions are enforced by the server.";
+    document.querySelector('.tab[data-tab="ask"]').hidden = true;
+    try {
+      await loadUsers(state.session);
+    } catch (err) {
+      toast("Demo is waking up or unavailable. Refresh this page to retry.");
+    }
+  }
   el("connect-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const session = ++state.session;
