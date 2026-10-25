@@ -12,7 +12,7 @@ A successful run writes `LOCAL_CHECKS_PASSED` and a unique `.local-evaluations/r
 
 ## Continuous integration
 
-The prepared workflow runs this validator on Windows and Ubuntu with Python 3.12 and Node.js 24. It installs only test/search dependencies and uses read-only repository permissions. No model, cloud credential or deployment is needed. The workflow is locally prepared; no GitHub run or green badge is claimed.
+The prepared workflow runs this validator on Windows and Ubuntu with Python 3.12 and Node.js 24. It installs only test/search dependencies and uses read-only repository permissions. No model, cloud credential or deployment is needed. The merged version has passed on both runners: [GitHub Actions evidence](https://github.com/NehaPrajwal1/vaultsearch/actions/runs/40180282456).
 
 Action configuration follows the official [checkout](https://github.com/actions/checkout), [setup-python](https://github.com/actions/setup-python) and [setup-node](https://github.com/actions/setup-node) documentation.
 

@@ -25,4 +25,4 @@ if [ "$mode" = "false" ] && { [ ! -f indexes/vectors.faiss ] || [ ! -f indexes/b
   python indexing/build_indexes.py
 fi
 
-exec uvicorn app.api:app --host 0.0.0.0 --port 8000
+exec uvicorn app.api:app --host 0.0.0.0 --port "${PORT:-8000}" --limit-concurrency 64
