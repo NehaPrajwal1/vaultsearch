@@ -39,7 +39,10 @@ def main():
         result=subprocess.run([sys.executable,"-m","pytest","-q","-p","no:cacheprovider","--ignore=tests/test_integration_retrieval.py"],cwd=ROOT,capture_output=True,text=True,timeout=90)
         report["checks"]["lightweight"]={"returncode":result.returncode,"stdout":result.stdout,"stderr":result.stderr}
         save()
-        if result.returncode: raise RuntimeError("Lightweight tests failed")
+        if result.returncode:
+            print(result.stdout, flush=True)
+            print(result.stderr, file=sys.stderr, flush=True)
+            raise RuntimeError("Lightweight tests failed")
         from test_release import FIXTURES, acceptance
         acceptance_rows=[{"fixture":case,"api_case":acceptance(case)} for case in FIXTURES]
         (out/"acceptance.json").write_text(json.dumps(acceptance_rows,indent=2),encoding="utf-8")
