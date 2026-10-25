@@ -94,6 +94,17 @@ class SearchRequest(BaseModel):
     mode: str = Field(default="bm25", pattern=r"^(bm25|vector|hybrid|hybrid\+rerank|all)$")
 
 
+@app.middleware("http")
+async def response_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.get("/health")
 def health(request: Request) -> dict:
     search_only = getattr(request.app.state, "search_only", False)

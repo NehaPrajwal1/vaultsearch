@@ -25,6 +25,9 @@ from urllib.parse import unquote_plus
 import boto3
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from app.schema import Document
+
 SOURCES_DIR = ROOT / "data" / "sources"
 INDEX_DIR = ROOT / "indexes"
 
@@ -74,6 +77,8 @@ def rebuild(s3, keys: list[str]) -> None:
             payload = json.loads(target.read_text(encoding="utf-8"))
             if not isinstance(payload, list):
                 raise ValueError("Source JSON must contain a list of documents")
+            for raw in payload:
+                Document.from_dict(raw)
         for key in keys:
             name = Path(key).name
             (Path(staging) / name).replace(SOURCES_DIR / name)
