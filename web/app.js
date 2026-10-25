@@ -2,6 +2,7 @@
 
 const state = {
   token: "",
+  session: 0,
   searchOnly: true,
   users: [],
   totalChunks: 0,
@@ -78,10 +79,12 @@ async function checkHealth() {
   }
 }
 
-async function loadUsers() {
+async function loadUsers(session) {
   const res = await fetch("/api/users", {signal: AbortSignal.timeout(10000), headers: {Authorization: `Bearer ${state.token}`}});
   if (!res.ok) throw new Error("Demo token was not accepted");
   const data = await res.json();
+  if (session !== state.session) return;
+  if (!Array.isArray(data.users) || !data.users.length) throw new Error("No configured identity returned");
   state.users = data.users;
   state.totalChunks = data.users[0].visible_chunks;
   el("corpus-stat").textContent = `${state.totalChunks} accessible chunks`;
@@ -217,6 +220,7 @@ async function onAsk(event) {
   event.preventDefault();
   const question = el("ask-input").value.trim();
   if (!question || !state.currentUser || state.searchOnly) return;
+  const session = state.session;
   const btn = el("ask-btn");
   btn.disabled = true;
   btn.textContent = "Thinking";
@@ -235,14 +239,18 @@ async function onAsk(event) {
       user_id: state.currentUser.user_id,
       question,
     });
+    if (session !== state.session) return;
     renderAnswer(data);
   } catch (err) {
+    if (session !== state.session) return;
     el("answer-status").textContent = "Answer unavailable";
     el("answer-body").textContent = `${err.message}. Use Search evidence to inspect permitted sources.`;
     toast(err.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Ask";
+    if (session === state.session) {
+      btn.disabled = state.searchOnly;
+      btn.textContent = "Ask";
+    }
   }
 }
 
@@ -260,6 +268,7 @@ async function onCompare(event) {
   const query = el("compare-input").value.trim();
   if (!state.currentUser) { toast("Connect with the demo token before searching."); return; }
   if (!query) return;
+  const session = state.session;
   const btn = el("compare-btn");
   btn.disabled = true;
   btn.textContent = "Running";
@@ -271,13 +280,17 @@ async function onCompare(event) {
       query,
       mode: el("search-mode").value,
     });
+    if (session !== state.session) return;
     renderCompare(data);
   } catch (err) {
+    if (session !== state.session) return;
     el("compare-grid").innerHTML = `<span style="color:var(--danger)">${escapeHtml(err.message)}</span>`;
     toast(err.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Search";
+    if (session === state.session) {
+      btn.disabled = false;
+      btn.textContent = "Search";
+    }
   }
 }
 
@@ -338,6 +351,11 @@ async function init() {
   await checkHealth();
   el("connect-form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const session = ++state.session;
+    el("compare-btn").disabled = false;
+    el("compare-btn").textContent = "Search";
+    el("ask-btn").disabled = state.searchOnly;
+    el("ask-btn").textContent = "Ask";
     state.currentUser = null;
     state.users = [];
     renderUsers();
@@ -345,12 +363,12 @@ async function init() {
     el("compare-grid").innerHTML = "";
     el("compare-visibility").hidden = true;
     el("corpus-stat").textContent = "Not connected";
-    el("ask-user-name").textContent = "â€”";
+    el("ask-user-name").textContent = "—";
     el("ask-user-visibility").textContent = "";
     state.token = el("demo-token").value;
     el("demo-token").value = "";
-    try { await loadUsers(); toast("Connected to the configured demo identity"); }
-    catch (err) { state.token = ""; state.currentUser = null; state.users = []; renderUsers(); toast(err.message); }
+    try { await loadUsers(session); if (session === state.session) toast("Connected to the configured demo identity"); }
+    catch (err) { if (session !== state.session) return; state.token = ""; state.currentUser = null; state.users = []; renderUsers(); toast(err.message); }
   });
 }
 

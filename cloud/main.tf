@@ -58,10 +58,19 @@ resource "aws_s3_bucket" "artifacts" {
 
 # ---- Eventing: new/updated source documents trigger re-ingestion ------------
 
+resource "aws_sqs_queue" "ingest_dead_letter" {
+  name                      = "vaultsearch-ingest-dead-letter"
+  message_retention_seconds = 1209600
+}
+
 resource "aws_sqs_queue" "ingest" {
   name                       = "vaultsearch-ingest"
   message_retention_seconds  = 86400
-  visibility_timeout_seconds = 300
+  visibility_timeout_seconds = 3600
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.ingest_dead_letter.arn
+    maxReceiveCount     = 5
+  })
 }
 
 resource "aws_sqs_queue_policy" "allow_s3" {
@@ -86,6 +95,8 @@ resource "aws_s3_bucket_notification" "sources_to_sqs" {
   queue {
     queue_arn = aws_sqs_queue.ingest.arn
     events    = ["s3:ObjectCreated:*"]
+    filter_prefix = "sources/"
+    filter_suffix = ".json"
   }
 
   depends_on = [aws_sqs_queue_policy.allow_s3]

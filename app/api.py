@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,7 +32,9 @@ def _audit_logger() -> logging.Logger:
     logs.mkdir(exist_ok=True)
     logger = logging.getLogger("vaultsearch.audit")
     if not logger.handlers:
-        handler = logging.FileHandler(logs / "audit.jsonl")
+        handler = RotatingFileHandler(
+            logs / "audit.jsonl", maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+        )
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)

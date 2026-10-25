@@ -44,7 +44,7 @@ Open **http://127.0.0.1:8000**, paste the token printed by the launcher into **D
 
 Stop the server with Ctrl+C. Restart with `--user dmitri` and reconnect using the fresh token to demonstrate finance access. Use `--port 8001` if the default port is occupied. The browser keeps the token in page memory.
 
-Python 3.11+ is the declared baseline; the recorded native validation used Python 3.12. Dependency installation requires network access. Linux/macOS and CI execution have not yet been confirmed for this snapshot.
+Python 3.11+ is the declared baseline; the recorded native validation used Python 3.12. Dependency installation requires network access. GitHub Actions has passed on Linux and Windows with Python 3.12.
 
 ## See the permission boundary
 
@@ -91,7 +91,7 @@ These are local engineering checks, not production security or live-model qualit
 .\.venv\Scripts\python.exe redteam/release_check.py
 ```
 
-Node.js is required for the JavaScript syntax check. Each run creates a new local evidence directory. A [CI workflow](.github/workflows/ci.yml) is prepared for Windows and Linux; it has not yet run on GitHub. [Validation guide](docs/validation.md)
+Node.js is required for the JavaScript syntax check. Each run creates a new local evidence directory. The [CI workflow](.github/workflows/ci.yml) runs on Windows and Linux. [Successful merged-version run](https://github.com/NehaPrajwal1/vaultsearch/actions/runs/40180282456). [Validation guide](docs/validation.md)
 
 ## Scope and remaining work
 
